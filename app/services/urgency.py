@@ -33,3 +33,18 @@ def evaluate_urgency(findings: Dict[str, Any]) -> Tuple[UrgencyLevel, str]:
         return UrgencyLevel.YELLOW, "Urgent condition detected. Follow-up required."
     else:
         return UrgencyLevel.GREEN, "Routine check-up. No immediate concerns."
+
+def triage_input(data: Dict[str, Any]) -> UrgencyLevel:
+    """
+    Quickly triage input data to determine priority queue.
+    """
+    # Simple keyword detection for demo purposes
+    # In reality, this might use a lightweight NLP model
+    symptoms = data.get("symptoms", [])
+    if isinstance(symptoms, list):
+        critical_keywords = ["chest pain", "shortness of breath", "stroke", "heart attack"]
+        for symptom in symptoms:
+            if any(keyword in str(symptom).lower() for keyword in critical_keywords):
+                return UrgencyLevel.RED
+    
+    return UrgencyLevel.GREEN
