@@ -1,36 +1,44 @@
-# Agentic AI-Based Disease Detection System
+# NeuralMedic: Agentic AI-Based Disease Detection System 🏥🤖
 
-## Executive Summary
-The Agentic AI-Based Disease Detection System is a clinical decision-support platform that transforms raw patient data into life-saving medical insights. Unlike traditional AI that simply "guesses," our system uses a collaborative board of 11 autonomous agents to analyze, audit, and summarize health data for both patients and doctors.
+## 1. Project Mission: The Agentic Medical Board
+The core objective of this project is to build an **Agentic AI-Based Disease Detection System**. It uses a collaborative "Medical Board" of **11 autonomous agents** to analyze multimodal patient data (lab reports, skin/hair images, and health history) to provide high-fidelity decision support to doctors while keeping patients informed.
 
-## How It Works (The Core Innovation)
-We use a Hub-and-Spoke Architecture powered by FastAPI, Celery, and Redis. When a patient uploads data, the system doesn't just run one scan; it initiates a "Medical Consultation" in the background:
+## 2. Integrated System Architecture
+To ensure clinical reliability and system responsiveness, we have engineered an **Asynchronous, Event-Driven Architecture** using the following stack:
 
-1.  **Parallel Analysis**: While the Cardio Agent tracks heart patterns, the Derm Agent scans skin images, and the Memory Agent pulls years of historical data to find hidden trends.
-2.  **The Audit Layer**: To prevent "AI Hallucinations," an Explainability (XAI) Agent must prove every finding by linking it to a specific line in a lab report before the doctor ever sees it.
-3.  **The Orchestrator**: This "Chief Medical Officer" agent synthesizes all specialist findings into one unified, 30-second summary.
+*   **Ingestion Layer (FastAPI)**: Acts as the entry point, receiving patient artifacts (PDFs, JPEGs) and offloading heavy processing to the background to ensure zero UI latency.
+*   **Message Broker (Redis)**: Manages the communication between the API and workers. It features a **Priority Queue (Urgency Filter)** to ensure life-threatening alerts (like heart spikes) jump to the front of the line.
+*   **Worker Pool (Celery)**: Hosts the **11 Specialized Agents** as stateless, horizontally scalable workers that process data in parallel.
+*   **Storage Tier**: Uses **PostgreSQL** for reasoning paths and metadata, and **S3/MinIO** for raw medical artifacts like high-res images and lab reports.
 
-## The "Urgency Filter" & Dual-Output
-One of our standout features is the Crisis Triage Logic. The system automatically categorizes results into three levels:
+## 3. The 11-Agent Intelligence Framework
+The "intelligence" is split into three integrated tiers to ensure the doctor receives a "pre-verified" case file:
 
-| Level | Impact | Action |
-| :--- | :--- | :--- |
-| **Red (Critical)** | Life-threatening (e.g., Heart Attack). | Bypasses the patient; triggers immediate Doctor/ER alerts. |
-| **Yellow (Urgent)** | Needs attention (e.g., Rising Sugar). | Notifies the patient and doctor; schedules a 24h follow-up. |
-| **Green (Routine)** | Normal health check-up. | Sends a simple "Health Snapshot" to the patient. |
+### Tier 1: Specialized Experts (The Workers)
+*   **Triage Agent**: Conducts adaptive patient interviews to gather symptoms.
+*   **Multimodal Parser**: Extracts structured data from raw PDFs and images.
+*   **Cardio-Metabolic Agent**: Detects patterns in heart and glucose data.
+*   **Derm-Pathology Agent**: Analyzes skin and hair pathologies visually.
+*   **Memory Agent**: Compares current data with historical records to find "slow-burn" trends.
 
-## Why This is "Best-in-Class"
-For the Antigravity team, the value proposition is built on three pillars:
+### Tier 2: Audit & Safety (The Fact-Checkers)
+*   **Explainability (XAI) Agent**: Grounding AI claims by linking them directly to evidence in the lab reports.
+*   **Pharmacology Agent**: Checks for drug-to-drug interactions and allergies.
+*   **Ethics Auditor**: Ensures diagnostic logic remains fair across all demographics.
+*   **Sentiment Agent**: Assesses patient anxiety to help the doctor adjust their tone.
 
--   **Doctor Efficiency**: We turn a 15-minute file review into a 30-second dashboard check, reducing physician burnout.
--   **Patient Transparency**: Patients receive simplified, "Traffic Light" summaries so they understand their health without the jargon.
--   **Scalability**: By using Celery and Redis, the system can handle thousands of simultaneous medical reports without slowing down.
+### Tier 3: Management (The Bridge)
+*   **The Orchestrator**: Synthesizes all specialist findings into a unified 30-Second Dashboard for the doctor.
+*   **Compliance Agent**: Monitors the patient post-visit to ensure they follow the treatment plan.
 
-## The Technical Stack
--   **Processing**: Asynchronous Task Queuing via Celery.
--   **Communication**: Redis as the high-speed message broker.
--   **Intelligence**: 11 Specialized Agents (LLMs + Computer Vision).
--   **Trust**: XAI (Explainable AI) grounding for medical accountability.
+## 4. Clinical Workflow & Features
+The system follows a strict "Human-in-the-Loop" flow to maintain medical accountability:
 
-## Conclusion
-This project isn't just about detecting disease; it’s about Closing the Gap between complex medical data and human decision-making. It’s safe, fast, and built to scale.
+*   **Urgency Filter**: Automatically categorizes cases into **Red (Emergency)**, **Yellow (Consult)**, or **Green (Stable)**.
+*   **Dual-Output Reporting**:
+    *   **Patient**: Receives a simplified "Health Snapshot" with traffic-light status.
+    *   **Doctor**: Receives a deep-dive "Clinical Case File" with evidence-based decision support.
+*   **One-Click Validation**: The doctor reviews the AI's proposed plan and can approve or modify it with a single click.
+
+## Why Antigravity Wins
+By using Celery and Redis to power an Agentic Board, we turn hours of manual data review into seconds of verified insight. This architecture is not just an app—it is a scalable medical infrastructure designed for the future of healthcare.
