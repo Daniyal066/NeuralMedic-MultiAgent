@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: neuralmedic_api
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql://neuralmedic:neuralpassword@db:5432/neuralmedic_db
+    depends_on:
+      - redis
+      - db
+    networks:
+      - neural-net
+
+  worker:
+    build: .
+    container_name: neuralmedic_worker
+    command: celery -A app.core.celery_app worker --loglevel=info -Q critical,default
+    volumes:
+      - .:/app
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql://neuralmedic:neuralpassword@db:5432/neuralmedic_db
+    depends_on:
+      - redis
+      - db
+    networks:
+      - neural-net
+
+  redis:
+    image: redis:6-alpine
+    container_name: neuralmedic_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - neural-net
+
+  db:
+    image: postgres:13-alpine
+    container_name: neuralmedic_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=neuralmedic
+      - POSTGRES_PASSWORD=neuralpassword
+      - POSTGRES_DB=neuralmedic_db
+    ports:
+      - "5432:5432"
+    networks:
+      - neural-net
+
+volumes:
+  postgres_data:
+
+networks:
+  neural-net:
+    driver: bridge
