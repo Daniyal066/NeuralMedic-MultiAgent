@@ -24,11 +24,11 @@ def main():
     print("[TEST] Launching main.py (Poller Service)...")
     env = os.environ.copy()
     # Set env vars if needed, though defaults match
-    env["POSTGRES_HOST"] = DB_HOST
-    env["POSTGRES_PORT"] = DB_PORT
-    env["POSTGRES_DB"] = DB_NAME
-    env["POSTGRES_USER"] = DB_USER
-    env["POSTGRES_PASSWORD"] = DB_PASSWORD
+    env["DB_HOST"] = DB_HOST
+    env["DB_PORT"] = DB_PORT
+    env["DB_NAME"] = DB_NAME
+    env["DB_USER"] = DB_USER
+    env["DB_PASS"] = DB_PASSWORD
     env["REDIS_HOST"] = REDIS_HOST
     env["REDIS_PORT"] = str(REDIS_PORT)
     env["PYTHONPATH"] = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) # Add project root to path

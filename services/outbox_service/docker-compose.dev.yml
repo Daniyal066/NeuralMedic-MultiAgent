@@ -1,6 +1,18 @@
 version: '3.8'
 
 services:
+  poller:
+    build: .
+    restart: always
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      DB_HOST: postgres
+      DB_NAME: neuralmedic
+      DB_USER: admin
+      DB_PASS: password
+      REDIS_HOST: redis
   postgres:
     image: postgres:15
     ports:

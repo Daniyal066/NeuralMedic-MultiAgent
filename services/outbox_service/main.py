@@ -14,11 +14,12 @@ logging.basicConfig(
 logger = logging.getLogger("outbox-service")
 
 # Configuration
-DB_HOST = os.getenv("POSTGRES_HOST", "localhost")
-DB_PORT = os.getenv("POSTGRES_PORT", "5432")
-DB_NAME = os.getenv("POSTGRES_DB", "neuralmedic")
-DB_USER = os.getenv("POSTGRES_USER", "admin")
-DB_PASSWORD = os.getenv("POSTGRES_PASSWORD", "password")
+# Configuration
+DB_HOST = os.getenv("DB_HOST", "localhost")
+DB_PORT = os.getenv("DB_PORT", "5432")
+DB_NAME = os.getenv("DB_NAME", "neuralmedic")
+DB_USER = os.getenv("DB_USER", "admin")
+DB_PASSWORD = os.getenv("DB_PASS", "password")
 
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
