@@ -7,3 +7,5 @@ neuralmedic_shared.egg-info/SOURCES.txt
 neuralmedic_shared.egg-info/dependency_links.txt
 neuralmedic_shared.egg-info/requires.txt
 neuralmedic_shared.egg-info/top_level.txt
+tests/test_logging.py
+tests/test_redis.py
