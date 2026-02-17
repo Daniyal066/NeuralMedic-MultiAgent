@@ -1,63 +1,32 @@
 version: '3.8'
 
 services:
-  web:
-    build: .
-    container_name: neuralmedic_api
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-    volumes:
-      - .:/app
+  postgres:
+    image: postgres:15-alpine
+    container_name: neuralmedic_postgres
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: neuralmedic
     ports:
-      - "8000:8000"
-    environment:
-      - REDIS_URL=redis://redis:6379/0
-      - DATABASE_URL=postgresql://neuralmedic:neuralpassword@db:5432/neuralmedic_db
-    depends_on:
-      - redis
-      - db
-    networks:
-      - neural-net
-
-  worker:
-    build: .
-    container_name: neuralmedic_worker
-    command: celery -A app.core.celery_app worker --loglevel=info -Q critical,default
+      - "5432:5432"
     volumes:
-      - .:/app
-    environment:
-      - REDIS_URL=redis://redis:6379/0
-      - DATABASE_URL=postgresql://neuralmedic:neuralpassword@db:5432/neuralmedic_db
-    depends_on:
-      - redis
-      - db
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
-      - neural-net
+      - neuralmedic_network
 
   redis:
-    image: redis:6-alpine
+    image: redis:7-alpine
     container_name: neuralmedic_redis
     ports:
       - "6379:6379"
     networks:
-      - neural-net
+      - neuralmedic_network
 
-  db:
-    image: postgres:13-alpine
-    container_name: neuralmedic_db
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    environment:
-      - POSTGRES_USER=neuralmedic
-      - POSTGRES_PASSWORD=neuralpassword
-      - POSTGRES_DB=neuralmedic_db
-    ports:
-      - "5432:5432"
-    networks:
-      - neural-net
+networks:
+  neuralmedic_network:
+    driver: bridge
 
 volumes:
   postgres_data:
-
-networks:
-  neural-net:
-    driver: bridge
