@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+celery
+redis
+pydantic
+python-dotenv
+requests
+pydantic-settings
+psycopg2-binary
