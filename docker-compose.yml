@@ -24,6 +24,24 @@ services:
     networks:
       - neuralmedic_network
 
+  outbox_poller:
+    build:
+      context: ./services/outbox_service
+    container_name: neuralmedic_outbox_poller
+    restart: always
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: admin
+      DB_PASS: password123
+      DB_NAME: neuralmedic
+      REDIS_HOST: redis
+    networks:
+      - neuralmedic_network
+
 networks:
   neuralmedic_network:
     driver: bridge
