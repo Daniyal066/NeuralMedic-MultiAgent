@@ -26,10 +26,11 @@ CREATE TABLE IF NOT EXISTS job_status (
 );
 
 -- Create outbox table
+-- Create outbox table
 CREATE TABLE IF NOT EXISTS outbox (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    aggregate_type VARCHAR(100) NOT NULL,
-    aggregate_id VARCHAR(100) NOT NULL,
-    payload_json JSONB NOT NULL,
+    id SERIAL PRIMARY KEY,
+    event_type VARCHAR(255) NOT NULL,
+    payload JSONB NOT NULL,
+    status VARCHAR(50) DEFAULT 'PENDING',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

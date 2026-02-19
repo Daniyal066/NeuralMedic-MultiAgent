@@ -64,17 +64,18 @@ def main():
         try:
             conn = connect_db()
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                # SELECT FOR UPDATE SKIP LOCKED to handle concurrency if multiple pollers existed
+                # SELECT FOR UPDATE SKIP LOCKED to handle concurrency
                 cur.execute("""
-                    SELECT id, aggregate_type, payload_json 
+                    SELECT id, event_type, payload 
                     FROM outbox 
+                    WHERE status = 'PENDING'
                     LIMIT 10 
                     FOR UPDATE SKIP LOCKED
                 """)
                 rows = cur.fetchall()
 
                 if not rows:
-                    conn.commit() # Release any locks (though SKIP LOCKED shouldn't hold much)
+                    conn.commit()
                     time.sleep(POLLING_INTERVAL)
                     continue
 
@@ -82,20 +83,21 @@ def main():
 
                 for row in rows:
                     event_id = row['id']
-                    aggregate_type = row['aggregate_type']
-                    payload = row['payload_json']
+                    event_type = row['event_type']
+                    payload = row['payload']
                     
                     # Determine Redis Channel
-                    channel = CHANNEL_MAPPING.get(aggregate_type, "default_queue")
+                    # Use mapping for known types to maintain compatibility, fallback to event_type
+                    channel = CHANNEL_MAPPING.get(event_type, event_type)
                     
                     # Publish to Redis
                     # Ensure payload is string
                     message = json.dumps(payload) if not isinstance(payload, str) else payload
                     r.publish(channel, message)
-                    logger.info(f"Published event {event_id} ({aggregate_type}) to {channel}")
+                    logger.info(f"Published event {event_id} ({event_type}) to {channel}")
 
-                    # Delete from Outbox
-                    cur.execute("DELETE FROM outbox WHERE id = %s", (event_id,))
+                    # Mark as processed
+                    cur.execute("UPDATE outbox SET status = 'PROCESSED' WHERE id = %s", (event_id,))
                 
                 # Commit the transaction after processing batch
                 conn.commit()
