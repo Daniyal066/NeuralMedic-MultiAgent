@@ -64,11 +64,13 @@ def main():
         try:
             conn = connect_db()
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                logger.info("Checking for pending events...")
+                
                 # SELECT FOR UPDATE SKIP LOCKED to handle concurrency
                 cur.execute("""
                     SELECT id, event_type, payload 
                     FROM outbox 
-                    WHERE status = 'PENDING'
+                    WHERE status = 'pending' 
                     LIMIT 10 
                     FOR UPDATE SKIP LOCKED
                 """)
@@ -86,18 +88,22 @@ def main():
                     event_type = row['event_type']
                     payload = row['payload']
                     
-                    # Determine Redis Channel
-                    # Use mapping for known types to maintain compatibility, fallback to event_type
-                    channel = CHANNEL_MAPPING.get(event_type, event_type)
+                    # Force Redis Channel to 'job_queue' as per requirement
+                    channel = "job_queue"
                     
                     # Publish to Redis
-                    # Ensure payload is string
-                    message = json.dumps(payload) if not isinstance(payload, str) else payload
+                    # Postgres JSONB comes as dict, so we MUST dump it to string for Redis
+                    try:
+                        message = json.dumps(payload) if isinstance(payload, (dict, list)) else str(payload)
+                    except Exception as e:
+                        logger.error(f"Failed to serialize payload for event {event_id}: {e}")
+                        continue
+
                     r.publish(channel, message)
                     logger.info(f"Published event {event_id} ({event_type}) to {channel}")
 
-                    # Mark as processed
-                    cur.execute("UPDATE outbox SET status = 'PROCESSED' WHERE id = %s", (event_id,))
+                    # Mark as processed (lowercase 'processed' as required)
+                    cur.execute("UPDATE outbox SET status = 'processed' WHERE id = %s", (event_id,))
                 
                 # Commit the transaction after processing batch
                 conn.commit()
