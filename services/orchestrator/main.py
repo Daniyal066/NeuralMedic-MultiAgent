@@ -63,8 +63,15 @@ async def create_jobs(session_id: str):
             
             # Using a transaction for atomicity
             async with conn.transaction():
-                await conn.execute(query, session_id, 'summarizer')
-                await conn.execute(query, session_id, 'diagnosis')
+                # Fan-out to 4 specialized workers
+                workers = [
+                    'pathology_hunter',
+                    'biometric_analyst',
+                    'risk_calculator',
+                    'pharmacology_agent'
+                ]
+                for worker in workers:
+                    await conn.execute(query, session_id, worker)
                 
             logger.info(f"Created jobs for session {session_id}")
             
