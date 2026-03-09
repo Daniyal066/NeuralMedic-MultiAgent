@@ -1,124 +1,93 @@
-import time
 import os
+import time
 import json
-import logging
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import redis
+from datetime import datetime
+import sys
+import logging
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger("outbox-service")
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger("OutboxPoller")
 
 # Configuration
-# Configuration
-DB_HOST = os.getenv("DB_HOST", "localhost")
-DB_PORT = os.getenv("DB_PORT", "5432")
+DB_HOST = os.getenv("DB_HOST", "postgres")
 DB_NAME = os.getenv("DB_NAME", "neuralmedic")
 DB_USER = os.getenv("DB_USER", "admin")
-DB_PASSWORD = os.getenv("DB_PASS", "password")
-
-REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+DB_PASS = os.getenv("DB_PASS", "password123")
+DB_PORT = os.getenv("DB_PORT", "5432")
+REDIS_HOST = os.getenv("REDIS_HOST", "redis")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
-
-POLLING_INTERVAL = 0.5
-
-# Channel Mapping
-CHANNEL_MAPPING = {
-    "JOB_READY": "job_queue",
-    "TASK_ASSIGNMENT": "worker_tasks",
-    "WORKER_DONE": "worker_results",
-    "RE_ENGAGE_EVENT": "recursion_queue"
-}
+POLL_INTERVAL = 2  # Seconds
 
 def connect_db():
-    conn = psycopg2.connect(
+    return psycopg2.connect(
         host=DB_HOST,
-        port=DB_PORT,
         database=DB_NAME,
         user=DB_USER,
-        password=DB_PASSWORD
+        password=DB_PASS,
+        port=DB_PORT
     )
-    return conn
-
-def connect_redis():
-    return redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
 
 def main():
-    logger.info("Starting Outbox Poller Service...")
-    
-    # Retry connection logic could be added here, but failing fast for now
-    try:
-        r = connect_redis()
-        r.ping()
-        logger.info("Connected to Redis")
-    except Exception as e:
-        logger.error(f"Failed to connect to Redis: {e}")
-        return
+    logger.info("Starting Outbox Poller...")
+    r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
 
     while True:
         conn = None
         try:
             conn = connect_db()
+            # Use RealDictCursor for easier access to columns
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                logger.info("Checking for pending events...")
-                
-                # SELECT FOR UPDATE SKIP LOCKED to handle concurrency
+                # Select unprocessed events with concurrency safety
                 cur.execute("""
-                    SELECT id, event_type, payload 
-                    FROM outbox 
-                    WHERE status = 'pending' 
-                    LIMIT 10 
+                    SELECT id, aggregate_id, event_type, payload 
+                    FROM outbox_events 
+                    WHERE processed = FALSE 
+                    ORDER BY created_at 
+                    LIMIT 10
                     FOR UPDATE SKIP LOCKED
                 """)
-                rows = cur.fetchall()
+                events = cur.fetchall()
 
-                if not rows:
+                if events:
+                    logger.info(f"Found {len(events)} unprocessed events.")
+                    for event in events:
+                        event_id = event['id']
+                        agg_id = event['aggregate_id']
+                        event_type = event['event_type']
+                        payload = event['payload']
+                        
+                        # Harmonize with Orchestrator (use job_queue channel)
+                        # We include the standard payload plus the aggregate metadata
+                        message = {
+                            "event_id": str(event_id),
+                            "aggregate_id": agg_id,
+                            "event_type": event_type,
+                            "payload": payload
+                        }
+                        
+                        r.publish("job_queue", json.dumps(message))
+                        r.publish("healthcare_events", json.dumps(message)) # Backward compatibility
+                        
+                        logger.info(f"Published event {event_id} ({event_type}) to job_queue.")
+
+                        # Mark as processed
+                        cur.execute("UPDATE outbox_events SET processed = TRUE WHERE id = %s", (event_id,))
+                    
                     conn.commit()
-                    time.sleep(POLLING_INTERVAL)
-                    continue
-
-                logger.info(f"Processing {len(rows)} events")
-
-                for row in rows:
-                    event_id = row['id']
-                    event_type = row['event_type']
-                    payload = row['payload']
-                    
-                    # Force Redis Channel to 'job_queue' as per requirement
-                    channel = "job_queue"
-                    
-                    # Publish to Redis
-                    # Postgres JSONB comes as dict, so we MUST dump it to string for Redis
-                    try:
-                        message = json.dumps(payload) if isinstance(payload, (dict, list)) else str(payload)
-                    except Exception as e:
-                        logger.error(f"Failed to serialize payload for event {event_id}: {e}")
-                        continue
-
-                    r.publish(channel, message)
-                    logger.info(f"Published event {event_id} ({event_type}) to {channel}")
-
-                    # Mark as processed (lowercase 'processed' as required)
-                    cur.execute("UPDATE outbox SET status = 'processed' WHERE id = %s", (event_id,))
-                
-                # Commit the transaction after processing batch
-                conn.commit()
-                
+            
         except Exception as e:
-            logger.error(f"Error in poll loop: {e}")
+            logger.error(f"Error in poller: {e}")
             if conn:
-                try:
-                    conn.rollback()
-                except:
-                    pass
-            time.sleep(5) # Backoff
+                conn.rollback()
         finally:
             if conn:
                 conn.close()
+        
+        time.sleep(POLL_INTERVAL)
 
 if __name__ == "__main__":
     main()
