@@ -1,179 +1,46 @@
--- Enable UUID extension
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+-- Enable vector extension
+CREATE EXTENSION IF NOT EXISTS vector;
 
--- ==========================================
--- 1. Core Domain
--- ==========================================
-
--- patients: Stores patient demographics and medical history
-CREATE TABLE IF NOT EXISTS patients (
+-- Create healthcare table if it doesn't exist
+CREATE TABLE IF NOT EXISTS healthcare (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID, -- Optional link to auth system
-    full_name VARCHAR(255),
-    dob DATE,
-    gender VARCHAR(50),
-    medical_history_summary TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    patient_id VARCHAR(50) NOT NULL,
+    session_id VARCHAR(50) NOT NULL,
+    symptoms_text TEXT,
+    medical_history TEXT,
+    doctor_notes TEXT,
+    created_at TIMESTAMP DEFAULT NOW(),
+    
+    -- Embedding columns (1536 dimensions for OpenAI embeddings)
+    symptoms_embedding VECTOR(384),
+    history_embedding VECTOR(384),
+    notes_embedding VECTOR(384)
 );
 
--- doctors: Registered medical professionals
-CREATE TABLE IF NOT EXISTS doctors (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL,
-    specialization VARCHAR(100),
-    license_number VARCHAR(100),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- symptoms: Reference data for standardized symptoms
-CREATE TABLE IF NOT EXISTS symptoms (
+-- Outbox table for event publishing
+CREATE TABLE IF NOT EXISTS outbox_events (
     id SERIAL PRIMARY KEY,
-    code VARCHAR(50) UNIQUE NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    severity_scale INT CHECK (severity_scale BETWEEN 1 AND 10)
+    aggregate_id VARCHAR(50) NOT NULL,
+    event_type VARCHAR(50) NOT NULL,
+    payload JSONB NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW(),
+    processed BOOLEAN DEFAULT FALSE
 );
 
--- diseases: Reference data for standardized diseases (ICD-10)
-CREATE TABLE IF NOT EXISTS diseases (
-    id SERIAL PRIMARY KEY,
-    icd10_code VARCHAR(50) UNIQUE,
-    name VARCHAR(255) NOT NULL,
-    description TEXT
-);
+-- Add vector indexes (IVFFLAT for better performance, HNSW is alternative)
+CREATE INDEX IF NOT EXISTS idx_symptoms_embedding ON healthcare USING ivfflat (symptoms_embedding vector_l2_ops) WITH (lists = 100);
 
--- ==========================================
--- 2. Operational Schema
--- ==========================================
+-- Insert dummy data for verificaiton (with dummy embeddings)
+-- Note: Real embeddings would come from an embedding model. Here we use zero-vectors or random for schema testing.
+INSERT INTO healthcare (patient_id, session_id, symptoms_text, medical_history, doctor_notes, symptoms_embedding)
+VALUES 
+('pat_001', 'sess_001', 'Headache and fever', 'No prior history', 'Patient advised rest', (SELECT array_agg(random())::vector(384) FROM generate_series(1, 384))),
+('pat_002', 'sess_002', 'Stomach ache', 'Ulcer history', 'Prescribed antacids', (SELECT array_agg(random())::vector(384) FROM generate_series(1, 384))),
+('pat_003', 'sess_003', 'Migraine', 'Chronic headaches', 'Prescribed painkillers', (SELECT array_agg(random())::vector(384) FROM generate_series(1, 384)));
 
--- sessions: Medical consultation sessions
--- Note: 'patient_id' and 'doctor_id' added. 'user_id' kept for backward compatibility if needed, or deprecated.
-CREATE TABLE IF NOT EXISTS sessions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    patient_id UUID REFERENCES patients(id),
-    doctor_id UUID REFERENCES doctors(id),
-    user_id UUID, -- Deprecated, use patient_id
-    status VARCHAR(50) DEFAULT 'ACTIVE', -- ACTIVE, COMPLETED, ARCHIVED
-    transcript_jsonb JSONB DEFAULT '{}',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+-- Insert dummy outbox event
+INSERT INTO outbox_events (aggregate_id, event_type, payload)
+VALUES ('sess_001', 'HealthcareSessionCreated', '{"patient_id": "pat_001", "session_id": "sess_001"}');
 
--- patient_symptoms: Many-to-Many link between sessions and symptoms
-CREATE TABLE IF NOT EXISTS patient_symptoms (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    session_id UUID REFERENCES sessions(id),
-    symptom_id INT REFERENCES symptoms(id),
-    severity INT,
-    duration_days INT,
-    notes TEXT
-);
-
--- job_status_enum: Status for jobs and tasks
-DO $$ BEGIN
-    CREATE TYPE job_status_enum AS ENUM ('PENDING', 'PROCESSING', 'DONE', 'FAILED');
-EXCEPTION
-    WHEN duplicate_object THEN null;
-END $$;
-
--- job_status: High-level job tracking (Preserved for compatibility)
-CREATE TABLE IF NOT EXISTS job_status (
-    job_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    session_id UUID NOT NULL REFERENCES sessions(id),
-    worker_type VARCHAR(50) NOT NULL,
-    status job_status_enum NOT NULL DEFAULT 'PENDING',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- ==========================================
--- 3. Agent System Schema
--- ==========================================
-
--- agents: Registry of AI agents
-CREATE TABLE IF NOT EXISTS agents (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name VARCHAR(100) UNIQUE NOT NULL,
-    type VARCHAR(50) NOT NULL,
-    version VARCHAR(50) NOT NULL,
-    status VARCHAR(50) DEFAULT 'ACTIVE'
-);
-
--- agent_tasks: Granular tasks assigned to agents
-CREATE TABLE IF NOT EXISTS agent_tasks (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    session_id UUID REFERENCES sessions(id),
-    agent_id UUID REFERENCES agents(id),
-    task_type VARCHAR(100) NOT NULL,
-    status VARCHAR(50) DEFAULT 'PENDING',
-    input_payload JSONB,
-    output_payload JSONB,
-    started_at TIMESTAMP WITH TIME ZONE,
-    completed_at TIMESTAMP WITH TIME ZONE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- agent_execution_logs: Debug logs for agents
-CREATE TABLE IF NOT EXISTS agent_execution_logs (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    task_id UUID REFERENCES agent_tasks(id),
-    log_level VARCHAR(20) DEFAULT 'INFO',
-    message TEXT,
-    metadata JSONB,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- ==========================================
--- 4. Analytics & Audit
--- ==========================================
-
--- predictions: Final diagnostic outputs
-CREATE TABLE IF NOT EXISTS predictions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    session_id UUID REFERENCES sessions(id),
-    primary_disease_id INT REFERENCES diseases(id),
-    confidence_score DECIMAL(5,4),
-    generated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- feedback: RLHF from doctors
-CREATE TABLE IF NOT EXISTS feedback (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    prediction_id UUID REFERENCES predictions(id),
-    reviewer_id UUID,
-    rating INT CHECK (rating BETWEEN 1 AND 5),
-    comments TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- audit_logs: Security and traceability
-CREATE TABLE IF NOT EXISTS audit_logs (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    entity_type VARCHAR(50),
-    entity_id UUID,
-    action VARCHAR(50),
-    actor_id UUID,
-    changes JSONB,
-    timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- notifications: Real-time alerts for users/doctors
-CREATE TABLE IF NOT EXISTS notifications (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL, -- Recipient (Doctor or Patient)
-    type VARCHAR(50) NOT NULL, -- e.g., 'JOB_COMPLETE', 'ACTION_REQUIRED'
-    message TEXT NOT NULL,
-    read BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- ==========================================
--- 5. Infrastructure
--- ==========================================
-
--- outbox: Transactional Outbox for events
-CREATE TABLE IF NOT EXISTS outbox (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    aggregate_type VARCHAR(100) NOT NULL,
-    aggregate_id VARCHAR(100) NOT NULL,
-    payload_json JSONB NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+-- Optimize index
+VACUUM ANALYZE healthcare;
