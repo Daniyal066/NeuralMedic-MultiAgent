@@ -137,6 +137,25 @@ services:
     networks:
       - neuralmedic_network
 
+  orchestrator:
+    build:
+      context: ./services/orchestrator
+    container_name: neuralmedic_orchestrator
+    restart: always
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      DB_HOST: postgres
+      DB_PORT: ${POSTGRES_PORT:-5432}
+      DB_USER: ${POSTGRES_USER}
+      DB_PASS: ${POSTGRES_PASSWORD}
+      DB_NAME: ${POSTGRES_DB}
+      REDIS_HOST: redis
+      REDIS_PORT: ${REDIS_PORT:-6379}
+    networks:
+      - neuralmedic_network
+
 networks:
   neuralmedic_network:
     driver: bridge

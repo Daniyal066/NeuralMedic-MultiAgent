@@ -17,21 +17,20 @@ CREATE TABLE IF NOT EXISTS healthcare (
     notes_embedding VECTOR(384)
 );
 
--- Outbox table for event publishing
+-- Outbox table for event publishing (Unified Schema)
 CREATE TABLE IF NOT EXISTS outbox_events (
     id SERIAL PRIMARY KEY,
     aggregate_id VARCHAR(50) NOT NULL,
-    event_type VARCHAR(50) NOT NULL,
+    event_type VARCHAR(255) NOT NULL,
     payload JSONB NOT NULL,
-    created_at TIMESTAMP DEFAULT NOW(),
-    processed BOOLEAN DEFAULT FALSE
+    processed BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Add vector indexes (IVFFLAT for better performance, HNSW is alternative)
 CREATE INDEX IF NOT EXISTS idx_symptoms_embedding ON healthcare USING ivfflat (symptoms_embedding vector_l2_ops) WITH (lists = 100);
 
 -- Insert dummy data for verificaiton (with dummy embeddings)
--- Note: Real embeddings would come from an embedding model. Here we use zero-vectors or random for schema testing.
 INSERT INTO healthcare (patient_id, session_id, symptoms_text, medical_history, doctor_notes, symptoms_embedding)
 VALUES 
 ('pat_001', 'sess_001', 'Headache and fever', 'No prior history', 'Patient advised rest', (SELECT array_agg(random())::vector(384) FROM generate_series(1, 384))),
