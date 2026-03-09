@@ -1,0 +1,129 @@
+from fastapi import FastAPI, Depends, HTTPException
+from sqlalchemy.orm import Session
+import os
+import json
+import httpx
+from groq import Groq
+
+import models
+from database import engine, get_db
+
+# Ensure outbox_events table exists (it should from init.sql)
+models.Base.metadata.create_all(bind=engine)
+
+app = FastAPI(title="Pathology Worker")
+
+groq_client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
+
+CONTEXT_SERVICE_URL = os.getenv("CONTEXT_SERVICE_URL", "http://context_service:8000")
+
+PATHOLOGY_SYSTEM_PROMPT = """You are a specialized Pathology Analysis AI for a medical diagnostic system.
+You will receive a patient's symptoms, medical history, and similar case data from other patients.
+Your job is to:
+1. Identify potential diseases or conditions based on the symptoms.
+2. Analyze patterns from similar cases to support your findings.
+3. Flag any anomalies or concerning patterns.
+4. Provide a confidence score (0-1) for each identified condition.
+
+Output your analysis as structured JSON in this exact format:
+{
+  "conditions_identified": [
+    {
+      "condition": "Name of condition",
+      "confidence_score": 0.85,
+      "supporting_evidence": "Brief explanation"
+    }
+  ],
+  "anomaly_detected": true/false,
+  "key_findings": "Summary of pathological findings",
+  "recommendations": "Suggested next steps for diagnosis"
+}"""
+
+
+@app.post("/analyze/pathology/{session_id}")
+def analyze_pathology(session_id: str, db: Session = Depends(get_db)):
+    # 1. Pull data from Context Service
+    try:
+        with httpx.Client(timeout=30.0) as http_client:
+            response = http_client.get(f"{CONTEXT_SERVICE_URL}/context/{session_id}")
+            response.raise_for_status()
+            context_data = response.json()
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Failed to fetch context: {str(e)}")
+
+    if not context_data:
+        raise HTTPException(status_code=404, detail=f"No context found for session {session_id}")
+
+    # 2. Build prompt from context
+    patient = context_data[0]
+    similar_cases = patient.get("similar_cases", [])
+    analysis_summary = patient.get("analysis_summary", "N/A")
+
+    user_prompt = f"""
+Patient Session: {session_id}
+Symptoms: {patient.get('symptoms_text', 'N/A')}
+Medical History: {patient.get('medical_history', 'N/A')}
+Doctor Notes: {patient.get('doctor_notes', 'N/A')}
+
+Context Service Analysis Summary:
+{analysis_summary}
+
+Similar Cases Found ({len(similar_cases)}):
+"""
+    for i, case in enumerate(similar_cases, 1):
+        if "error" not in case:
+            user_prompt += f"""
+  Case {i}: Session {case.get('session_id', 'N/A')}
+    Symptoms: {case.get('symptoms', 'N/A')}
+    History: {case.get('medical_history', 'N/A')}
+    Notes: {case.get('doctor_notes', 'N/A')}
+    Similarity: {case.get('similarity', 'N/A')}
+"""
+
+    user_prompt += "\nPlease provide your pathology analysis based on the above data."
+
+    # 3. Run Groq LLM
+    try:
+        chat_completion = groq_client.chat.completions.create(
+            messages=[
+                {"role": "system", "content": PATHOLOGY_SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt}
+            ],
+            model="llama-3.3-70b-versatile",
+            temperature=0.3,
+        )
+        llm_response = chat_completion.choices[0].message.content
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"LLM Error: {str(e)}")
+
+    # 4. Parse LLM JSON response
+    try:
+        # Try to extract JSON from the response
+        if "{" in llm_response:
+            start = llm_response.find("{")
+            end = llm_response.rfind("}") + 1
+            analysis_json = json.loads(llm_response[start:end])
+        else:
+            analysis_json = {"raw_analysis": llm_response}
+    except json.JSONDecodeError:
+        analysis_json = {"raw_analysis": llm_response}
+
+    # 5. Write to Outbox
+    outbox_event = models.OutboxEvent(
+        aggregate_id=session_id,
+        event_type="PathologyAnalysisCompleted",
+        payload=json.dumps({
+            "session_id": session_id,
+            "patient_id": patient.get("patient_id"),
+            "analysis": analysis_json
+        })
+    )
+    db.add(outbox_event)
+    db.commit()
+
+    return {
+        "status": "completed",
+        "session_id": session_id,
+        "event_type": "PathologyAnalysisCompleted",
+        "analysis": analysis_json
+    }

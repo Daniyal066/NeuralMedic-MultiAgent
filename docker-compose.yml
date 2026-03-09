@@ -1,8 +1,6 @@
-version: '3.8'
-
 services:
   postgres:
-    image: postgres:15-alpine
+    image: pgvector/pgvector:pg15
     container_name: neuralmedic_postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
@@ -39,6 +37,103 @@ services:
       DB_PASS: ${POSTGRES_PASSWORD}
       DB_NAME: ${POSTGRES_DB}
       REDIS_HOST: redis
+      REDIS_PORT: ${REDIS_PORT:-6379}
+    networks:
+      - neuralmedic_network
+
+  context_service:
+    build:
+      context: ./services/context_service
+    container_name: neuralmedic_context_service
+    restart: always
+    depends_on:
+      - postgres
+    environment:
+      DB_HOST: postgres
+      DB_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+    ports:
+      - "8000:8000"
+    networks:
+      - neuralmedic_network
+
+  embedding_service:
+    build:
+      context: ./services/embedding_service
+    container_name: neuralmedic_embedding_service
+    restart: always
+    depends_on:
+      - postgres
+    environment:
+      DB_HOST: postgres
+      DB_PORT: ${POSTGRES_PORT:-5432}
+      DB_USER: ${POSTGRES_USER}
+      DB_PASS: ${POSTGRES_PASSWORD}
+      DB_NAME: ${POSTGRES_DB}
+    networks:
+      - neuralmedic_network
+
+  interview_agent:
+    build:
+      context: ./services/interview_agent
+    container_name: neuralmedic_interview_agent
+    restart: always
+    depends_on:
+      - postgres
+    environment:
+      DB_HOST: postgres
+      DB_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+    ports:
+      - "8001:8001"
+    networks:
+      - neuralmedic_network
+
+  pathology_worker:
+    build:
+      context: ./services/pathology_worker
+    container_name: neuralmedic_pathology_worker
+    restart: always
+    depends_on:
+      - postgres
+      - context_service
+    environment:
+      DB_HOST: postgres
+      DB_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      CONTEXT_SERVICE_URL: http://context_service:8000
+    ports:
+      - "8002:8002"
+    networks:
+      - neuralmedic_network
+
+  risk_worker:
+    build:
+      context: ./services/risk_worker
+    container_name: neuralmedic_risk_worker
+    restart: always
+    depends_on:
+      - postgres
+      - context_service
+    environment:
+      DB_HOST: postgres
+      DB_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      CONTEXT_SERVICE_URL: http://context_service:8000
+    ports:
+      - "8004:8004"
     networks:
       - neuralmedic_network
 
