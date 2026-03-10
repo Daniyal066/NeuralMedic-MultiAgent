@@ -26,11 +26,28 @@ CREATE TABLE IF NOT EXISTS job_status (
 );
 
 -- Create outbox table
--- Create outbox table
 CREATE TABLE IF NOT EXISTS outbox (
     id SERIAL PRIMARY KEY,
     event_type VARCHAR(255) NOT NULL,
     payload JSONB NOT NULL,
     status VARCHAR(50) DEFAULT 'PENDING',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create reasoning_paths table
+CREATE TABLE IF NOT EXISTS reasoning_paths (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    job_id UUID NOT NULL REFERENCES job_status(job_id),
+    worker_name VARCHAR(100) NOT NULL,
+    reasoning_jsonb JSONB NOT NULL,
+    evidence_links_array TEXT[] DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create final_diagnoses table
+CREATE TABLE IF NOT EXISTS final_diagnoses (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id UUID NOT NULL REFERENCES sessions(id),
+    clinical_summary TEXT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
