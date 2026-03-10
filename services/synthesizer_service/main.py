@@ -115,8 +115,9 @@ async def process_session(session_id: str):
 
     logger.info(f"All worker reports gathered for session {session_id}. Calling LLM...")
     
-    if not OPENAI_API_KEY or OPENAI_API_KEY == "dummy_key":
-        logger.info("OPENAI_API_KEY is missing or empty. Using fallback mock.")
+    api_key_env = os.getenv("OPENAI_API_KEY")
+    if api_key_env is None or api_key_env.strip() in ["", '""', "''", "dummy_key"]:
+        logger.info("DEBUG: Using Mock Brain")
         result_json = {
             "action": "FINAL_DIAGNOSIS",
             "confidence_score": 0.95,
@@ -172,11 +173,12 @@ async def process_session(session_id: str):
                 logger.info(f"High confidence ({confidence}). Saving final diagnosis...")
                 await conn.execute(
                     """
-                    INSERT INTO final_diagnoses (session_id, clinical_summary)
-                    VALUES ($1, $2)
+                    INSERT INTO final_diagnoses (session_id, clinical_summary, confidence_score)
+                    VALUES ($1, $2, $3)
                     """,
                     session_id,
-                    result_json.get('clinical_summary', 'No summary provided')
+                    result_json.get('clinical_summary', 'No summary provided'),
+                    confidence
                 )
 
 async def redis_listener():

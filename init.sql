@@ -49,5 +49,6 @@ CREATE TABLE IF NOT EXISTS final_diagnoses (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     session_id UUID NOT NULL REFERENCES sessions(id),
     clinical_summary TEXT NOT NULL,
+    confidence_score NUMERIC,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
