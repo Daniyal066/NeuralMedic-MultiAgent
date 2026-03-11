@@ -5,3 +5,5 @@ python-dotenv
 sqlalchemy
 pgvector
 groq
+chromadb
+pypdf
