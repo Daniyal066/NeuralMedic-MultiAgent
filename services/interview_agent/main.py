@@ -6,7 +6,11 @@ from typing import Optional, List, Dict
 import os
 import time
 import json
+import sys
 from groq import Groq
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../libs/shared')))
+from neuralmedic_shared import MedicalAuditLogger, RedisManager
 
 import models
 from database import engine, get_db
@@ -21,7 +25,11 @@ for _ in range(10):
 
 app = FastAPI(title="Interview Agent (Ingestion)")
 
-client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
+logger = MedicalAuditLogger("InterviewAgent")
+redis_manager = RedisManager()
+
+groq_api_key = os.environ.get("GROQ_API_KEY")
+client = Groq(api_key=groq_api_key) if groq_api_key else None
 
 # Add system prompt
 SYSTEM_PROMPT = """
@@ -49,6 +57,7 @@ class ChatResponse(BaseModel):
 
 @app.post("/chat/{session_id}", response_model=ChatResponse)
 def handle_chat(session_id: str, payload: ChatMessage, db: Session = Depends(get_db)):
+    logger.log(f"Handling chat request for session: {session_id}")
     # 1. Fetch or create the session record
     record = db.query(models.Healthcare).filter(models.Healthcare.session_id == session_id).first()
     if not record:
@@ -70,15 +79,23 @@ def handle_chat(session_id: str, payload: ChatMessage, db: Session = Depends(get
     history.append({"role": "user", "content": payload.message})
 
     # 3. Call Groq Llama LLM
-    try:
-        chat_completion = client.chat.completions.create(
-            messages=history,
-            model="llama-3.3-70b-versatile",
-            temperature=0.7,
-        )
-        ai_reply = chat_completion.choices[0].message.content
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"LLM Error: {str(e)}")
+    logger.log(f"Calling LLM for session: {session_id}")
+    if client:
+        try:
+            chat_completion = client.chat.completions.create(
+                messages=history,
+                model="llama-3.3-70b-versatile",
+                temperature=0.7,
+            )
+            ai_reply = chat_completion.choices[0].message.content
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"LLM Error: {str(e)}")
+    else:
+        # MOCK FOR TESTING
+        if "complete" in payload.message.lower():
+            ai_reply = '{"status": "complete", "symptoms_extracted": "Headache", "medical_history_extracted": "None"}'
+        else:
+            ai_reply = "I am a mock AI. Tell me more symptoms or say 'complete' to finish."
 
     # Append AI reply to history
     history.append({"role": "assistant", "content": ai_reply})
@@ -94,6 +111,7 @@ def handle_chat(session_id: str, payload: ChatMessage, db: Session = Depends(get
             extracted_data = json.loads(json_str)
             
             if extracted_data.get("status") == "complete":
+                logger.log(f"LLM returned complete status for session: {session_id}")
                 completion_status = "complete"
                 # Update the database with extracted data
                 record.symptoms_text = extracted_data.get("symptoms_extracted", "")
@@ -101,10 +119,23 @@ def handle_chat(session_id: str, payload: ChatMessage, db: Session = Depends(get
                 
                 # Strip the json block from the actual reply sent back to the user
                 ai_reply = ai_reply[:start].strip() + "\n" + ai_reply[end:].strip()
+                
+                # COMMIT FIRST
+                record.transcript = json.dumps(history)
+                logger.log(f"Committing session {session_id} to Postgres")
+                db.commit()
+                
+                # THEN PUBLISH (Commit-then-Publish)
+                logger.log(f"Publishing INTERVIEW_COMPLETE signal to Redis for session: {session_id}")
+                redis_client = redis_manager.get_client()
+                redis_client.set(f"session_status:{session_id}", "INTERVIEW_COMPLETE")
+                
+                return ChatResponse(reply=ai_reply, status=completion_status)
         except Exception as e:
+            logger.log(f"Failed to parse extraction JSON: {e}", level="ERROR")
             print(f"Failed to parse extraction JSON: {e}", flush=True)
 
-    # 5. Save transcript back to database
+    # 5. Save transcript back to database (if ongoing or error)
     record.transcript = json.dumps(history)
     db.commit()
 
