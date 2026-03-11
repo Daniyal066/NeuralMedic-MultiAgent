@@ -3,7 +3,7 @@ services:
     image: pgvector/pgvector:pg15
     container_name: neuralmedic_postgres
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_USER: admin
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     ports:
@@ -33,7 +33,7 @@ services:
     environment:
       DB_HOST: postgres
       DB_PORT: ${POSTGRES_PORT:-5432}
-      DB_USER: ${POSTGRES_USER}
+      DB_USER: admin
       DB_PASS: ${POSTGRES_PASSWORD}
       DB_NAME: ${POSTGRES_DB}
       REDIS_HOST: redis
@@ -51,7 +51,7 @@ services:
     environment:
       DB_HOST: postgres
       DB_PORT: ${POSTGRES_PORT:-5432}
-      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_USER: admin
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
       GROQ_API_KEY: ${GROQ_API_KEY}
@@ -70,7 +70,7 @@ services:
     environment:
       DB_HOST: postgres
       DB_PORT: ${POSTGRES_PORT:-5432}
-      DB_USER: ${POSTGRES_USER}
+      DB_USER: admin
       DB_PASS: ${POSTGRES_PASSWORD}
       DB_NAME: ${POSTGRES_DB}
     networks:
@@ -86,7 +86,7 @@ services:
     environment:
       DB_HOST: postgres
       DB_PORT: ${POSTGRES_PORT:-5432}
-      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_USER: admin
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
       GROQ_API_KEY: ${GROQ_API_KEY}
@@ -106,7 +106,7 @@ services:
     environment:
       DB_HOST: postgres
       DB_PORT: ${POSTGRES_PORT:-5432}
-      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_USER: admin
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
       GROQ_API_KEY: ${GROQ_API_KEY}
@@ -127,7 +127,7 @@ services:
     environment:
       DB_HOST: postgres
       DB_PORT: ${POSTGRES_PORT:-5432}
-      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_USER: admin
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
       GROQ_API_KEY: ${GROQ_API_KEY}
@@ -148,11 +148,31 @@ services:
     environment:
       DB_HOST: postgres
       DB_PORT: ${POSTGRES_PORT:-5432}
-      DB_USER: ${POSTGRES_USER}
+      DB_USER: admin
       DB_PASS: ${POSTGRES_PASSWORD}
       DB_NAME: ${POSTGRES_DB}
       REDIS_HOST: redis
       REDIS_PORT: ${REDIS_PORT:-6379}
+    networks:
+      - neuralmedic_network
+
+  synthesizer:
+    build:
+      context: ./services/synthesizer_service
+    container_name: neuralmedic_synthesizer
+    restart: always
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      DB_HOST: postgres
+      DB_PORT: ${POSTGRES_PORT:-5432}
+      DB_USER: admin
+      DB_PASS: ${POSTGRES_PASSWORD}
+      DB_NAME: ${POSTGRES_DB}
+      REDIS_HOST: redis
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-""}
     networks:
       - neuralmedic_network
 
