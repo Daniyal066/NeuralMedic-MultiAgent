@@ -1,5 +1,5 @@
-from sqlalchemy import Column, String, Text, DateTime, text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Column, String, Text, DateTime, Integer, Boolean, text
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from database import Base
 
 class Healthcare(Base):
@@ -15,3 +15,13 @@ class Healthcare(Base):
     
     # Optional field for storing the full raw transcript
     transcript = Column(Text)
+
+class OutboxEvent(Base):
+    __tablename__ = "outbox_events"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    aggregate_id = Column(String(50), nullable=False)
+    event_type = Column(String(255), nullable=False)
+    payload = Column(JSONB, nullable=False)
+    processed = Column(Boolean, server_default=text("FALSE"))
+    created_at = Column(DateTime, server_default=text("NOW()"))

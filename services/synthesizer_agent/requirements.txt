@@ -1,7 +1,7 @@
 fastapi
 uvicorn
-redis
+sqlalchemy
 psycopg2-binary
-python-dotenv
-asyncpg
+groq
 httpx
+redis

@@ -5,6 +5,7 @@ import os
 from contextlib import asynccontextmanager
 
 import asyncpg
+import httpx
 import redis.asyncio as redis
 from fastapi import FastAPI
 from dotenv import load_dotenv
@@ -37,11 +38,12 @@ async def get_db_pool():
     global db_pool
     if not db_pool:
         dsn = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+        logger.info(f"Connecting to DB at {DB_HOST}:{DB_PORT}/{DB_NAME} as {DB_USER}")
         try:
             db_pool = await asyncpg.create_pool(dsn)
-            logger.info("Connected to PostgreSQL")
+            logger.info("Connected to PostgreSQL successfully")
         except Exception as e:
-            logger.error(f"Failed to connect to PostgreSQL: {e}")
+            logger.error(f"CRITICAL: Failed to connect to PostgreSQL: {e}")
             raise
     return db_pool
 
@@ -49,30 +51,39 @@ async def create_jobs(session_id: str):
     """
     Creates 'summarizer' and 'diagnosis' jobs for the given session_id.
     """
+    logger.info(f"Attempting to create jobs for session: {session_id}")
     pool = await get_db_pool()
     async with pool.acquire() as conn:
         try:
-            # Check if session exists (optional validation, but good practice)
-            # Assuming foreign key constraint will handle it, but we can just insert.
-            
+            logger.info(f"Database connection acquired for session: {session_id}")
             # Insert jobs
             query = """
                 INSERT INTO job_status (session_id, worker_type, status)
                 VALUES ($1, $2, 'PENDING')
             """
             
+            workers = {
+                'pathology_worker': os.getenv("PATHOLOGY_WORKER_URL", "http://pathology_worker:8002"),
+                'risk_worker': os.getenv("RISK_WORKER_URL", "http://risk_worker:8004")
+            }
+
             # Using a transaction for atomicity
             async with conn.transaction():
-                # Fan-out to 4 specialized workers
-                workers = [
-                    'pathology_hunter',
-                    'biometric_analyst',
-                    'risk_calculator',
-                    'pharmacology_agent'
-                ]
-                for worker in workers:
-                    await conn.execute(query, session_id, worker)
-                
+                # First, ensure jobs are in DB and visible to other connections
+                for name, url in workers.items():
+                    await conn.execute(query, session_id, name)
+            
+            # Fan-out to specialized workers via HTTP outside the transaction
+            async with httpx.AsyncClient() as client:
+                for name, url in workers.items():
+                    try:
+                        # Map worker names to our specific endpoints
+                        endpoint = "pathology" if "pathology" in name else "risk"
+                        await client.post(f"{url}/analyze/{endpoint}/{session_id}", timeout=2.0)
+                        logger.info(f"Triggered {name} for session {session_id}")
+                    except Exception as e:
+                        logger.error(f"Failed to trigger {name}: {e}")
+            
             logger.info(f"Created jobs for session {session_id}")
             
         except Exception as e:
@@ -94,27 +105,18 @@ async def redis_listener():
                     data = json.loads(message['data'])
                     logger.info(f"Received message: {data}")
                     
-                    event_type = data.get('type') or data.get('aggregate_type') # Handle both naming conventions if needed
+                    event_type = data.get('event_type') or data.get('type')
+                    session_id = data.get('aggregate_id') or data.get('session_id')
+                    logger.info(f"Parsed event_type: {event_type}, session_id: {session_id}")
                     
-                    # The outbox poller sends the payload_json directly. 
-                    # Let's inspect the payload content from the outbox poller.
-                    # Outbox Poller logic: 
-                    # message = json.dumps(payload) 
-                    # So 'data' here IS the payload_json from the outbox table.
-                    
-                    # We expect the payload to contain 'type' if that's how we distinguish events,
-                    # OR we might rely on the channel if we had multiple channels.
-                    # But the requirement says: "Check if type == JOB_READY".
-                    # Let's assume the payload looks like {"type": "JOB_READY", "session_id": "..."}
-                    
-                    if data.get('type') == 'JOB_READY':
-                        session_id = data.get('session_id')
+                    if event_type == 'JOB_READY':
+                        logger.info(f"Matched JOB_READY for {session_id}")
                         if session_id:
                             await create_jobs(session_id)
                         else:
                             logger.warning(f"Received JOB_READY event without session_id: {data}")
                     else:
-                        logger.debug(f"Ignoring event type: {data.get('type')}")
+                        logger.info(f"Ignoring event type: {event_type}")
 
                 except json.JSONDecodeError:
                     logger.error(f"Failed to decode message: {message['data']}")

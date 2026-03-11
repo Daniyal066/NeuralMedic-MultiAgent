@@ -1,8 +1,11 @@
 from fastapi import FastAPI, Depends, HTTPException
+from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, text
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import OperationalError
 from typing import Optional, List, Dict
+import os
 import os
 import time
 import json
@@ -99,12 +102,24 @@ def handle_chat(session_id: str, payload: ChatMessage, db: Session = Depends(get
                 record.symptoms_text = extracted_data.get("symptoms_extracted", "")
                 record.medical_history = extracted_data.get("medical_history_extracted", "")
                 
-                # Strip the json block from the actual reply sent back to the user
-                ai_reply = ai_reply[:start].strip() + "\n" + ai_reply[end:].strip()
-        except Exception as e:
-            print(f"Failed to parse extraction JSON: {e}", flush=True)
+                # Save transcript and data
+                record.transcript = json.dumps(history)
+                db.commit()
 
-    # 5. Save transcript back to database
+                # 6. Emit JOB_READY event to Outbox
+                outbox_event = models.OutboxEvent(
+                    aggregate_id=session_id,
+                    event_type="JOB_READY",
+                    payload={"session_id": session_id, "patient_id": record.patient_id, "type": "JOB_READY"}
+                )
+                db.add(outbox_event)
+                db.commit()
+
+                return ChatResponse(reply=ai_reply, status=completion_status)
+        except Exception as e:
+            print(f"Failed to parse or emit event: {e}", flush=True)
+
+    # 5. Save transcript back to database (Ongoing)
     record.transcript = json.dumps(history)
     db.commit()
 
