@@ -7,11 +7,11 @@ import redis.asyncio as redis
 import os
 
 # Configuration matching the orchestrator defaults
-DB_HOST = os.getenv("DB_HOST", "localhost")
+DB_HOST = os.getenv("DB_HOST", "127.0.0.1")
 DB_PORT = os.getenv("DB_PORT", "5432")
 DB_NAME = os.getenv("DB_NAME", "neuralmedic")
 DB_USER = os.getenv("DB_USER", "admin")
-DB_PASSWORD = os.getenv("DB_PASS", "password")
+DB_PASSWORD = os.getenv("DB_PASS", "password123")
 
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
