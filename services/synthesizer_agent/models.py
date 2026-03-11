@@ -12,13 +12,15 @@ class OutboxEvent(Base):
     processed = Column(Boolean, server_default=text("FALSE"))
     created_at = Column(DateTime, server_default=text("NOW()"))
 
+from sqlalchemy import Enum
+
 class JobStatus(Base):
     __tablename__ = "job_status"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     session_id = Column(String(50), nullable=False)
     worker_type = Column(String(50), nullable=False)
-    status = Column(String(20), default="PENDING")
+    status = Column(Enum('PENDING', 'PROCESSING', 'DONE', 'FAILED', name='job_status_enum'), default="PENDING")
     result = Column(JSONB)
     created_at = Column(DateTime, server_default=text("NOW()"))
     updated_at = Column(DateTime, server_default=text("NOW()"))

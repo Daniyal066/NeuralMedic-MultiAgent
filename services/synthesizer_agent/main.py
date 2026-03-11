@@ -58,7 +58,7 @@ async def check_and_synthesize(session_id: str):
         # 1. Fetch all completed jobs for this session
         jobs = db.query(models.JobStatus).filter(
             models.JobStatus.session_id == session_id,
-            models.JobStatus.status == "COMPLETED"
+            models.JobStatus.status == "DONE"
         ).all()
         
         completed_worker_types = [j.worker_type for j in jobs]
@@ -181,7 +181,7 @@ async def redis_listener():
                             job = models.JobStatus(session_id=session_id, worker_type=target_worker)
                             db.add(job)
                         
-                        job.status = "COMPLETED"
+                        job.status = "DONE"
                         job.result = payload
                         job.updated_at = text("NOW()")
                         db.commit()
