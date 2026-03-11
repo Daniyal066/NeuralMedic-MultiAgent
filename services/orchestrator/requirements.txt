@@ -1,6 +1,6 @@
 fastapi
 uvicorn
-redis
+redis>=4.5.0
 psycopg2-binary
 python-dotenv
 asyncpg

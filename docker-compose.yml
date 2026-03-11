@@ -56,7 +56,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       GROQ_API_KEY: ${GROQ_API_KEY}
     ports:
-      - "8000:8000"
+      - "8003:8000"
     networks:
       - neuralmedic_network
 
@@ -143,7 +143,9 @@ services:
   orchestrator:
     build:
       context: ./services/orchestrator
-    container_name: neuralmedic_orchestrator
+    deploy:
+      mode: replicated
+      replicas: 3
     restart: always
     depends_on:
       - postgres

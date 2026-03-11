@@ -108,7 +108,7 @@ async def process_session(session_id: str):
         ''', session_id)
         
         if not records:
-            logger.warning(f"No reasoning paths found for session {session_id}")
+            logger.warning(f"No reasoning paths found for session {session_id}. Cannot synthesize.")
             return
             
         reports = {rec['worker_name']: rec['reasoning_jsonb'] for rec in records}

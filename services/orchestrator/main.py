@@ -60,6 +60,7 @@ async def create_jobs(session_id: str):
             query = """
                 INSERT INTO job_status (session_id, worker_type, status)
                 VALUES ($1, $2, 'PENDING')
+                RETURNING job_id
             """
             
             workers = {
@@ -67,27 +68,71 @@ async def create_jobs(session_id: str):
                 'risk_worker': os.getenv("RISK_WORKER_URL", "http://risk_worker:8004")
             }
 
-            # Using a transaction for atomicity
+            created_job_ids = []
             async with conn.transaction():
-                # First, ensure jobs are in DB and visible to other connections
                 for name, url in workers.items():
-                    await conn.execute(query, session_id, name)
-            
-            # Fan-out to specialized workers via HTTP outside the transaction
-            async with httpx.AsyncClient() as client:
-                for name, url in workers.items():
-                    try:
-                        # Map worker names to our specific endpoints
-                        endpoint = "pathology" if "pathology" in name else "risk"
-                        await client.post(f"{url}/analyze/{endpoint}/{session_id}", timeout=2.0)
-                        logger.info(f"Triggered {name} for session {session_id}")
-                    except Exception as e:
-                        logger.error(f"Failed to trigger {name}: {e}")
-            
-            logger.info(f"Created jobs for session {session_id}")
+                    job_id = await conn.fetchval(query, session_id, name)
+                    created_job_ids.append(job_id)
+
+            # Trigger job processing through Redis pub/sub directly so new process logic takes over
+            r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
+            for j_id in created_job_ids:
+                await r.publish(REDIS_CHANNEL, json.dumps({"job_id": str(j_id), "type": "JOB_TRIGGER"}))
+
+            logger.info(f"Created jobs for session {session_id} and published to Redis")
             
         except Exception as e:
             logger.error(f"Error creating jobs for session {session_id}: {e}")
+
+async def process_job(job_id: str, r: redis.Redis):
+    hostname = os.environ.get("HOSTNAME", "unknown_node")
+    lock_key = f"lock:job:{job_id}"
+    
+    lock = r.lock(lock_key, timeout=10)
+    acquired = await lock.acquire(blocking=False)
+    
+    if not acquired:
+        logger.warning(f"Node {hostname} bypassed job {job_id} - Lock held by another orchestrator.")
+        return
+
+    try:
+        logger.info(f"Node {hostname} ACQUIRED lock for job {job_id}.")
+        pool = await get_db_pool()
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow("SELECT status, session_id, worker_type FROM job_status WHERE job_id = $1", (job_id,))
+            if not row:
+                logger.error(f"Job not found in database: {job_id}")
+                return
+            if row['status'] != 'PENDING':
+                logger.info(f"Node {hostname} bypassed job {job_id} - already processed (status: {row['status']})")
+                return
+            
+            await conn.execute("UPDATE job_status SET status = 'PROCESSING', updated_at = NOW() WHERE job_id = $1", (job_id,))
+            
+            # Dispatch
+            session_id = row['session_id']
+            worker_type = row['worker_type']
+            workers = {
+                'pathology_worker': os.getenv("PATHOLOGY_WORKER_URL", "http://pathology_worker:8002"),
+                'risk_worker': os.getenv("RISK_WORKER_URL", "http://risk_worker:8004")
+            }
+            url = workers.get(worker_type)
+            if url:
+                endpoint = "pathology" if "pathology" in worker_type else "risk"
+                async with httpx.AsyncClient() as client:
+                    try:
+                        await client.post(f"{url}/analyze/{endpoint}/{session_id}", timeout=2.0)
+                        logger.info(f"Triggered {worker_type} for job {job_id} / session {session_id}")
+                    except Exception as e:
+                        logger.error(f"Failed to trigger {worker_type}: {e}")
+            else:
+                logger.error(f"Unknown worker_type: {worker_type}")
+    finally:
+        try:
+            await lock.release()
+        except redis.exceptions.LockError:
+            # Lock might have auto-expired
+            pass
 
 async def redis_listener():
     """
@@ -107,16 +152,15 @@ async def redis_listener():
                     
                     event_type = data.get('event_type') or data.get('type')
                     session_id = data.get('aggregate_id') or data.get('session_id')
-                    logger.info(f"Parsed event_type: {event_type}, session_id: {session_id}")
+                    job_id = data.get('job_id')
                     
-                    if event_type == 'JOB_READY':
+                    if job_id:
+                        asyncio.create_task(process_job(job_id, r))
+                    elif event_type == 'JOB_READY' and session_id:
                         logger.info(f"Matched JOB_READY for {session_id}")
-                        if session_id:
-                            await create_jobs(session_id)
-                        else:
-                            logger.warning(f"Received JOB_READY event without session_id: {data}")
+                        await create_jobs(session_id)
                     else:
-                        logger.info(f"Ignoring event type: {event_type}")
+                        logger.info(f"Ignoring message: {data}")
 
                 except json.JSONDecodeError:
                     logger.error(f"Failed to decode message: {message['data']}")
@@ -125,8 +169,6 @@ async def redis_listener():
                     
     except Exception as e:
         logger.error(f"Redis listener error: {e}")
-        # In a real app, we might want to restart the listener or exit the app to let Docker restart it.
-        # For now, let's just log it.
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -134,7 +176,6 @@ async def lifespan(app: FastAPI):
     task = asyncio.create_task(redis_listener())
     yield
     # Shutdown
-    # Force cancel the task if needed, or let it die with the loop
     task.cancel()
     if db_pool:
         await db_pool.close()
