@@ -1,0 +1,5 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
+sentence-transformers
+psycopg2-binary
+pgvector

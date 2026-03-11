@@ -163,9 +163,10 @@ async def process_session(session_id: str):
                 # SYSTEM_PATTERNS.md actually says "Synthesizer pushes a RE_ENGAGE_EVENT to the recursion_queue Redis channel. Master Orchestrator listens to recursion_queue." Let's use event_type = "RE_ENGAGE_EVENT" in the outbox.
                 await conn.execute(
                     """
-                    INSERT INTO outbox (event_type, payload)
-                    VALUES ($1, $2::jsonb)
+                    INSERT INTO outbox_events (aggregate_id, event_type, payload)
+                    VALUES ($1, $2, $3::jsonb)
                     """,
+                    str(session_id),
                     "RE_ENGAGE_EVENT",
                     json.dumps(payload)
                 )
