@@ -155,6 +155,29 @@ services:
       REDIS_PORT: ${REDIS_PORT:-6379}
     networks:
       - neuralmedic_network
+  synthesizer_agent:
+    build:
+      context: ./services/synthesizer_agent
+    container_name: neuralmedic_synthesizer_agent
+    restart: always
+    depends_on:
+      - postgres
+      - redis
+      - context_service
+    environment:
+      DB_HOST: postgres
+      DB_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      REDIS_HOST: redis
+      CONTEXT_SERVICE_URL: http://context_service:8000
+      PYTHONUNBUFFERED: 1
+    ports:
+      - "8005:8005"
+    networks:
+      - neuralmedic_network
 
 networks:
   neuralmedic_network:
