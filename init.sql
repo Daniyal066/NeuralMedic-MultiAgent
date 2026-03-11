@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS healthcare (
     symptoms_text TEXT,
     medical_history TEXT,
     doctor_notes TEXT,
+    transcript TEXT,
     created_at TIMESTAMP DEFAULT NOW(),
     
     -- Embedding columns (1536 dimensions for OpenAI embeddings)
@@ -53,16 +54,6 @@ CREATE TABLE IF NOT EXISTS outbox_events (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Outbox table for event publishing (Unified Schema)
-CREATE TABLE IF NOT EXISTS outbox_events (
-    id SERIAL PRIMARY KEY,
-    aggregate_id VARCHAR(50) NOT NULL,
-    event_type VARCHAR(255) NOT NULL,
-    payload JSONB NOT NULL,
-    processed BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
 -- Create reasoning_paths table
 CREATE TABLE IF NOT EXISTS reasoning_paths (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -76,7 +67,7 @@ CREATE TABLE IF NOT EXISTS reasoning_paths (
 -- Create final_diagnoses table
 CREATE TABLE IF NOT EXISTS final_diagnoses (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    session_id UUID NOT NULL REFERENCES sessions(id),
+    session_id VARCHAR(50) NOT NULL,
     clinical_summary TEXT NOT NULL,
     confidence_score NUMERIC,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
