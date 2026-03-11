@@ -121,10 +121,15 @@ async def process_job(job_id: str, r: redis.Redis):
                 endpoint = "pathology" if "pathology" in worker_type else "risk"
                 async with httpx.AsyncClient() as client:
                     try:
-                        await client.post(f"{url}/analyze/{endpoint}/{session_id}", timeout=2.0)
+                        response = await client.post(f"{url}/analyze/{endpoint}/{session_id}", timeout=2.0)
+                        response.raise_for_status()
                         logger.info(f"Triggered {worker_type} for job {job_id} / session {session_id}")
+                    except (httpx.RequestError, httpx.HTTPStatusError) as e:
+                        logger.error(f"HTTP error triggering {worker_type} for job {job_id}: {e}")
+                        await conn.execute("UPDATE job_status SET status = 'FAILED', updated_at = NOW() WHERE job_id = $1", job_id)
                     except Exception as e:
-                        logger.error(f"Failed to trigger {worker_type}: {e}")
+                        logger.error(f"Failed to trigger {worker_type} for job {job_id}: {e}")
+                        await conn.execute("UPDATE job_status SET status = 'FAILED', updated_at = NOW() WHERE job_id = $1", job_id)
             else:
                 logger.error(f"Unknown worker_type: {worker_type}")
     finally:
