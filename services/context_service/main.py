@@ -73,20 +73,47 @@ def get_context(session_id: str, db: Session = Depends(get_db)):
                     })
                     history_context += f"\n--- Case {idx+1} ---\nSymptoms: {row[1]}\nMedical History: {row[2]}\nDoctor Notes: {row[3]}\n"
                 
+                # Fetch RAG Context from ChromaDB
+                rag_context = ""
+                try:
+                    import chromadb
+                    from chromadb.utils import embedding_functions
+                    import os
+                    
+                    CHROMA_HOST = os.environ.get("CHROMA_HOST", "chromadb")
+                    CHROMA_PORT = int(os.environ.get("CHROMA_PORT", "8000"))
+                    
+                    chroma_client = chromadb.HttpClient(host=CHROMA_HOST, port=CHROMA_PORT)
+                    emb_func = embedding_functions.DefaultEmbeddingFunction()
+                    collection = chroma_client.get_collection(name="medical_context", embedding_function=emb_func)
+                    
+                    if record.symptoms_text:
+                        rag_results = collection.query(
+                            query_texts=[record.symptoms_text],
+                            n_results=3
+                        )
+                        if rag_results['documents'] and rag_results['documents'][0]:
+                            rag_context = "\n--- Clinical Guidelines (RAG) ---\n"
+                            for i, doc in enumerate(rag_results['documents'][0]):
+                                rag_context += f"{doc}\n\n"
+                except Exception as chroma_err:
+                    print(f"ChromaDB Vector search failed/skipped: {chroma_err}")
+
                 # 3. LLM Analysis
                 if similar_cases and os.environ.get("GROQ_API_KEY"):
                     from groq import Groq
                     try:
-                        client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
+                        groq_client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
                         prompt = (
                             f"You are a medical AI assistant. Analyze the history of these similar past patients "
-                            f"who had related symptoms. Provide a concise analytical summary of these past cases, highlighting "
-                            f"common diagnoses, effective treatments found in the notes, and what we might learn for the current patient.\n\n"
+                            f"who had related symptoms, along with retrieved clinical guidelines. Provide a concise analytical summary "
+                            f"highlighting common diagnoses, effective treatments found in the notes, and what we might learn for the current patient.\n\n"
                             f"Current Patient Symptoms: {record.symptoms_text}\n"
                             f"Current Patient History: {record.medical_history}\n\n"
-                            f"Similar Cases History:\n{history_context}"
+                            f"Similar Cases History:\n{history_context}\n"
+                            f"{rag_context}"
                         )
-                        chat_completion = client.chat.completions.create(
+                        chat_completion = groq_client.chat.completions.create(
                             messages=[
                                 {"role": "system", "content": "You are a helpful medical data analyst. Output a clean, concise analysis."},
                                 {"role": "user", "content": prompt}

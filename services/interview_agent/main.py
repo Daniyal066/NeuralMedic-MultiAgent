@@ -72,10 +72,42 @@ def handle_chat(session_id: str, payload: ChatMessage, db: Session = Depends(get
     # Append user message
     history.append({"role": "user", "content": payload.message})
 
+    # Optional: Fetch RAG context from ChromaDB
+    rag_context = ""
+    try:
+        import chromadb
+        from chromadb.utils import embedding_functions
+        
+        CHROMA_HOST = os.environ.get("CHROMA_HOST", "chromadb")
+        CHROMA_PORT = int(os.environ.get("CHROMA_PORT", "8000"))
+        
+        chroma_client = chromadb.HttpClient(host=CHROMA_HOST, port=CHROMA_PORT)
+        emb_func = embedding_functions.DefaultEmbeddingFunction()
+        collection = chroma_client.get_collection(name="medical_context", embedding_function=emb_func)
+        
+        if payload.message.strip():
+            rag_results = collection.query(
+                query_texts=[payload.message],
+                n_results=2
+            )
+            if rag_results['documents'] and rag_results['documents'][0]:
+                rag_context = "\n--- Relevant Clinical Guidelines ---\n"
+                for doc in rag_results['documents'][0]:
+                    rag_context += f"{doc}\n\n"
+                rag_context += "Use these guidelines to inform your follow-up questions if they are relevant to the patient's symptoms."
+    except Exception as chroma_err:
+        print(f"ChromaDB Vector search failed/skipped: {chroma_err}")
+
+    # Create a temporary messages list for the LLM that includes the hidden RAG context
+    llm_messages = list(history)
+    if rag_context:
+        # Insert the RAG context right before the user's latest message
+        llm_messages.insert(-1, {"role": "system", "content": rag_context})
+
     # 3. Call Groq Llama LLM
     try:
         chat_completion = client.chat.completions.create(
-            messages=history,
+            messages=llm_messages,
             model="llama-3.3-70b-versatile",
             temperature=0.7,
         )
