@@ -99,7 +99,7 @@ async def process_job(job_id: str, r: redis.Redis):
         logger.info(f"Node {hostname} ACQUIRED lock for job {job_id}.")
         pool = await get_db_pool()
         async with pool.acquire() as conn:
-            row = await conn.fetchrow("SELECT status, session_id, worker_type FROM job_status WHERE job_id = $1", (job_id,))
+            row = await conn.fetchrow("SELECT status, session_id, worker_type FROM job_status WHERE job_id = $1", job_id)
             if not row:
                 logger.error(f"Job not found in database: {job_id}")
                 return
@@ -107,7 +107,7 @@ async def process_job(job_id: str, r: redis.Redis):
                 logger.info(f"Node {hostname} bypassed job {job_id} - already processed (status: {row['status']})")
                 return
             
-            await conn.execute("UPDATE job_status SET status = 'PROCESSING', updated_at = NOW() WHERE job_id = $1", (job_id,))
+            await conn.execute("UPDATE job_status SET status = 'PROCESSING', updated_at = NOW() WHERE job_id = $1", job_id)
             
             # Dispatch
             session_id = row['session_id']
