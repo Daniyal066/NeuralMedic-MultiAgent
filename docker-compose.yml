@@ -204,6 +204,28 @@ services:
     networks:
       - neuralmedic_network
 
+  frontend:
+    build:
+      context: ./services/frontend
+    container_name: neuralmedic_frontend
+    restart: always
+    depends_on:
+      - postgres
+      - interview_agent
+    environment:
+      DB_HOST: postgres
+      DB_PORT: ${POSTGRES_PORT:-5432}
+      DB_NAME: ${POSTGRES_DB}
+      DB_USER: admin
+      DB_PASS: ${POSTGRES_PASSWORD}
+      INTERVIEW_AGENT_URL: http://interview_agent:8001
+      ORCHESTRATOR_URL: http://orchestrator:8000
+      SYNTHESIZER_URL: http://synthesizer_agent:8005
+    ports:
+      - "8501:8501"
+    networks:
+      - neuralmedic_network
+
   chromadb:
     image: chromadb/chroma:latest
     container_name: neuralmedic_chromadb
