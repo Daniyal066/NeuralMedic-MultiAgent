@@ -156,3 +156,8 @@ def handle_chat(session_id: str, payload: ChatMessage, db: Session = Depends(get
     db.commit()
 
     return ChatResponse(reply=ai_reply, status=completion_status)
+
+
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}

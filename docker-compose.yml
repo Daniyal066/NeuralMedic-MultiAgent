@@ -56,7 +56,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       GROQ_API_KEY: ${GROQ_API_KEY}
     ports:
-      - "8004:8000"
+      - "8006:8000"
     networks:
       - neuralmedic_network
 
