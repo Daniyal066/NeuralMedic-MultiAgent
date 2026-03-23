@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 import os
 import json
 import httpx
@@ -53,11 +54,12 @@ def analyze_risk(session_id: str, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Failed to fetch context: {str(e)}")
 
-    if not context_data:
+    # Guard: context_data must be a non-empty list
+    if not context_data or not isinstance(context_data, list):
         raise HTTPException(status_code=404, detail=f"No context found for session {session_id}")
 
     # 2. Build prompt from context
-    patient = context_data[0]
+    patient = context_data[0] if isinstance(context_data, list) else context_data
     similar_cases = patient.get("similar_cases", [])
     analysis_summary = patient.get("analysis_summary", "N/A")
 
@@ -120,6 +122,12 @@ Similar Cases Found ({len(similar_cases)}):
         })
     )
     db.add(outbox_event)
+
+    # 6. Mark job as DONE so Synthesizer's completion check can fire
+    db.execute(
+        text("UPDATE job_status SET status = 'DONE', updated_at = NOW() WHERE session_id = :sid AND worker_type = 'risk_worker'"),
+        {"sid": session_id}
+    )
     db.commit()
 
     return {

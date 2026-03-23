@@ -121,7 +121,7 @@ async def process_job(job_id: str, r: redis.Redis):
                 endpoint = "pathology" if "pathology" in worker_type else "risk"
                 async with httpx.AsyncClient() as client:
                     try:
-                        response = await client.post(f"{url}/analyze/{endpoint}/{session_id}", timeout=2.0)
+                        response = await client.post(f"{url}/analyze/{endpoint}/{session_id}", timeout=120.0)
                         response.raise_for_status()
                         logger.info(f"Triggered {worker_type} for job {job_id} / session {session_id}")
                     except (httpx.RequestError, httpx.HTTPStatusError) as e:
