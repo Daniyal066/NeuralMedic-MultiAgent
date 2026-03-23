@@ -110,6 +110,7 @@ Please provide the final Chief Medical Officer synthesis.
             ],
             model="llama-3.3-70b-versatile",
             temperature=0.2,
+            timeout=15.0
         )
         llm_response = chat_completion.choices[0].message.content
 
@@ -156,6 +157,12 @@ Please provide the final Chief Medical Officer synthesis.
 
     except Exception as e:
         print(f"Synthesis error for session {session_id}: {e}", flush=True)
+        # Force FAILED status so the frontend UI and Orchestrator don't hang forever
+        db.execute(
+            text("UPDATE job_status SET status = 'FAILED', updated_at = NOW() WHERE session_id = :sid AND worker_type IN ('pathology_worker', 'risk_worker')"),
+            {"sid": session_id}
+        )
+        db.commit()
     finally:
         db.close()
 
