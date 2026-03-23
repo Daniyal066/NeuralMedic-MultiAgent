@@ -4,4 +4,4 @@ redis
 psycopg2-binary
 python-dotenv
 asyncpg
-openai
+groq

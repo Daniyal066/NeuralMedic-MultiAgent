@@ -8,7 +8,7 @@ import asyncpg
 import redis.asyncio as redis
 from fastapi import FastAPI
 from dotenv import load_dotenv
-from openai import AsyncOpenAI
+from groq import AsyncGroq
 
 # Load environment variables
 load_dotenv()
@@ -31,7 +31,7 @@ REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 REDIS_CHANNEL = "worker_results"
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 
 WORKERS = {
     'pathology_hunter',
@@ -55,8 +55,8 @@ async def get_db_pool():
             raise
     return db_pool
 
-# OpenAI Client
-openai_client = AsyncOpenAI(api_key=OPENAI_API_KEY)
+# Groq Client (initialized once at module level)
+groq_client = AsyncGroq(api_key=GROQ_API_KEY)
 
 SYNTHESIZER_PROMPT = """
 You are the *Synthesizer Agent*, acting as the Chief Medical Officer. You receive analysis from specialized workers (Pathology, Biometric, Risk, Pharmacology).
@@ -76,12 +76,12 @@ async def check_all_workers_completed(session_id: str, pool: asyncpg.Pool) -> bo
     """Checks if all 4 workers are DONE for a session_id."""
     async with pool.acquire() as conn:
         records = await conn.fetch(
-            "SELECT worker_type, status FROM job_status WHERE session_id = $1", 
+            "SELECT worker_type, status FROM job_status WHERE session_id = $1",
             session_id
         )
-        
+
         status_map = {rec['worker_type']: rec['status'] for rec in records}
-        
+
         for worker in WORKERS:
             if status_map.get(worker) != 'DONE':
                 return False
@@ -89,7 +89,7 @@ async def check_all_workers_completed(session_id: str, pool: asyncpg.Pool) -> bo
 
 async def process_session(session_id: str):
     pool = await get_db_pool()
-    
+
     async with pool.acquire() as conn:
         # Check if already synthesized
         existing = await conn.fetchval(
@@ -101,47 +101,48 @@ async def process_session(session_id: str):
 
         # Fetch all reasoning paths
         records = await conn.fetch('''
-            SELECT rp.worker_name, rp.reasoning_jsonb 
+            SELECT rp.worker_name, rp.reasoning_jsonb
             FROM reasoning_paths rp
             JOIN job_status js ON rp.job_id = js.job_id
             WHERE js.session_id = $1
         ''', session_id)
-        
+
         if not records:
             logger.warning(f"No reasoning paths found for session {session_id}. Cannot synthesize.")
             return
-            
+
         reports = {rec['worker_name']: rec['reasoning_jsonb'] for rec in records}
 
-    logger.info(f"All worker reports gathered for session {session_id}. Calling LLM...")
-    
-    api_key_env = os.getenv("OPENAI_API_KEY")
-    if api_key_env is None or api_key_env.strip() in ["", '""', "''", "dummy_key"]:
-        logger.info("DEBUG: Using Mock Brain")
-        result_json = {
-            "action": "FINAL_DIAGNOSIS",
-            "confidence_score": 0.95,
-            "clinical_summary": "MOCK SUMMARY: Patient requires standard follow-up."
-        }
-    else:
-        # LLM Call
-        try:
-            response = await openai_client.chat.completions.create(
-                model="gpt-4o",
-                response_format={ "type": "json_object" },
-                messages=[
-                    {"role": "system", "content": SYNTHESIZER_PROMPT},
-                    {"role": "user", "content": f"Here are the worker reports: {json.dumps(reports)}"}
-                ],
-                temperature=0.2
+    logger.info(f"All worker reports gathered for session {session_id}. Calling Groq LLM...")
+
+    # ------------------------------------------------------------------ #
+    #  Live Groq API call — wraps the chat completion in try/except so    #
+    #  the Orchestrator's Redlock is always released via a status update. #
+    # ------------------------------------------------------------------ #
+    try:
+        response = await groq_client.chat.completions.create(
+            model="llama3-8b-8192",
+            messages=[
+                {"role": "system", "content": SYNTHESIZER_PROMPT},
+                {"role": "user", "content": f"Here are the worker reports: {json.dumps(reports)}"}
+            ],
+            temperature=0.2,
+            max_tokens=1024,
+        )
+        result_text = response.choices[0].message.content
+        result_json = json.loads(result_text)
+        logger.info(f"Groq LLM Response: {result_json}")
+
+    except Exception as e:
+        logger.error(f"Groq API call failed for session {session_id}: {e}")
+        # Mark job as FAILED so the Orchestrator releases the Redlock
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "UPDATE jobs SET status = 'FAILED' WHERE session_id = $1",
+                session_id
             )
-            result_text = response.choices[0].message.content
-            result_json = json.loads(result_text)
-            logger.info(f"LLM Response: {result_json}")
-            
-        except Exception as e:
-            logger.error(f"Error calling LLM: {e}")
-            return
+        logger.info(f"Job status set to FAILED for session {session_id}.")
+        return
 
     confidence = result_json.get('confidence_score', 0.0)
     action = result_json.get('action', 'FINAL_DIAGNOSIS')
@@ -149,18 +150,16 @@ async def process_session(session_id: str):
     async with pool.acquire() as conn:
         async with conn.transaction():
             if action == 'RECURSIVE_TRIGGER' or confidence < 0.8:
-                logger.info(f"Low confidence ({confidence}). Triggering recursion...")
+                logger.info(f"Low confidence ({confidence}). Triggering recursion for session {session_id}...")
                 payload = {
                     "session_id": str(session_id),
                     "missing_information_list": result_json.get('missing_info', []),
-                    "context_summary": result_json.get('context_summary', "Confidence too low based on synthesized reports.")
+                    "context_summary": result_json.get(
+                        'context_summary',
+                        "Confidence too low based on synthesized reports."
+                    )
                 }
-                
-                # Write to outbox instead of redis queue directly to follow outbox pattern
-                # If the system expects it to eventually reach `recursion_queue` Redis channel:
-                # The OUTBOX poller currently routes based on `event_type`.
-                # Alternatively, as per user prompt: "publish a RE_ENGAGE_EVENT to the Redis job_queue"
-                # SYSTEM_PATTERNS.md actually says "Synthesizer pushes a RE_ENGAGE_EVENT to the recursion_queue Redis channel. Master Orchestrator listens to recursion_queue." Let's use event_type = "RE_ENGAGE_EVENT" in the outbox.
+                # Write RE_ENGAGE_EVENT to transactional outbox
                 await conn.execute(
                     """
                     INSERT INTO outbox_events (aggregate_id, event_type, payload)
@@ -171,7 +170,8 @@ async def process_session(session_id: str):
                     json.dumps(payload)
                 )
             else:
-                logger.info(f"High confidence ({confidence}). Saving final diagnosis...")
+                logger.info(f"High confidence ({confidence}). Saving final diagnosis for session {session_id}...")
+                # Persist the final diagnosis
                 await conn.execute(
                     """
                     INSERT INTO final_diagnoses (session_id, clinical_summary, confidence_score)
@@ -181,6 +181,12 @@ async def process_session(session_id: str):
                     result_json.get('clinical_summary', 'No summary provided'),
                     confidence
                 )
+                # Mark the job as COMPLETED to release the Orchestrator's Redlock
+                await conn.execute(
+                    "UPDATE jobs SET status = 'COMPLETED' WHERE session_id = $1",
+                    session_id
+                )
+                logger.info(f"Job status set to COMPLETED for session {session_id}.")
 
 async def redis_listener():
     """Listens to worker_results channel for WORKER_DONE events."""
@@ -189,36 +195,35 @@ async def redis_listener():
         r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
         pubsub = r.pubsub()
         await pubsub.subscribe(REDIS_CHANNEL)
-        
+
         pool = await get_db_pool()
-        
+
         async for message in pubsub.listen():
             if message['type'] == 'message':
                 try:
                     data = json.loads(message['data'])
                     event_type = data.get('event_type') or data.get('type')
-                    
+
                     if event_type == 'WORKER_DONE' or data.get('status') == 'DONE':
                         job_id = data.get('job_id')
                         if job_id:
-                            # Find session_id
                             async with pool.acquire() as conn:
                                 session_id = await conn.fetchval(
-                                    "SELECT session_id FROM job_status WHERE job_id = $1", 
+                                    "SELECT session_id FROM job_status WHERE job_id = $1",
                                     job_id
                                 )
-                            
+
                             if session_id:
                                 if await check_all_workers_completed(session_id, pool):
                                     await process_session(session_id)
                         else:
                             logger.warning(f"WORKER_DONE event missing job_id: {data}")
-                            
+
                 except json.JSONDecodeError:
                     pass
                 except Exception as e:
                     logger.error(f"Error processing message: {e}")
-                    
+
     except Exception as e:
         logger.error(f"Redis listener error: {e}")
 

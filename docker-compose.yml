@@ -192,6 +192,8 @@ services:
     depends_on:
       - postgres
       - redis
+    env_file:
+      - .env
     environment:
       DB_HOST: postgres
       DB_PORT: ${POSTGRES_PORT:-5432}
@@ -200,7 +202,7 @@ services:
       DB_NAME: ${POSTGRES_DB}
       REDIS_HOST: redis
       REDIS_PORT: ${REDIS_PORT:-6379}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-""}
+      GROQ_API_KEY: ${GROQ_API_KEY}
     networks:
       - neuralmedic_network
 
