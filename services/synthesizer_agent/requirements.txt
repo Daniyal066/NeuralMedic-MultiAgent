@@ -5,3 +5,4 @@ psycopg2-binary
 groq
 httpx
 redis
+pydantic

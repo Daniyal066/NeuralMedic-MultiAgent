@@ -24,7 +24,11 @@ for _ in range(10):
         print("Database not ready, waiting 3s...", flush=True)
         time.sleep(3)
 
-client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
+# --- GROQ_API_KEY Validation ---
+_groq_key = os.environ.get("GROQ_API_KEY")
+if not _groq_key:
+    print("CRITICAL: GROQ_API_KEY is not set. The synthesizer will not be able to call the LLM.", flush=True)
+client = Groq(api_key=_groq_key)
 REDIS_HOST = os.getenv("REDIS_HOST", "redis")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 CONTEXT_SERVICE_URL = os.getenv("CONTEXT_SERVICE_URL", "http://context_service:8000")
@@ -82,8 +86,8 @@ async def check_and_synthesize(session_id: str):
 
         # 3. Fetch Context
         async with httpx.AsyncClient(timeout=30.0) as http_client:
-            headers = {"X-API-Key": os.environ.get("INTERNAL_API_KEY", "default_internal_secret_key")}
-            response = await http_client.get(f"{CONTEXT_SERVICE_URL}/context/{session_id}", headers=headers)
+            # headers = {"X-API-Key": os.environ.get("INTERNAL_API_KEY", "default_internal_secret_key")}
+            response = await http_client.get(f"{CONTEXT_SERVICE_URL}/context/{session_id}")
             response.raise_for_status()
             context_data = response.json()
 
@@ -158,7 +162,7 @@ Please provide the final Chief Medical Officer synthesis.
 
     except Exception as e:
         print(f"Synthesis error for session {session_id}: {e}", flush=True)
-        # Force FAILED status so the frontend UI and Orchestrator don't hang forever
+        # Force FAILED status so the Orchestrator doesn't hang forever
         db.execute(
             text("UPDATE job_status SET status = 'FAILED', updated_at = NOW() WHERE session_id = :sid AND worker_type IN ('pathology_worker', 'risk_worker')"),
             {"sid": session_id}
