@@ -1,9 +1,11 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi.security import APIKeyHeader
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 import os
 import json
 import httpx
+import re
 from groq import Groq
 
 import models
@@ -13,6 +15,12 @@ from database import engine, get_db
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Pathology Worker")
+
+api_key_header = APIKeyHeader(name="X-API-Key")
+
+def verify_api_key(api_key: str = Depends(api_key_header)):
+    if api_key != os.environ.get("INTERNAL_API_KEY", "default_internal_secret_key"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid API Key")
 
 groq_client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
@@ -42,10 +50,11 @@ Output your analysis as structured JSON in this exact format:
 
 
 @app.post("/analyze/pathology/{session_id}")
-def analyze_pathology(session_id: str, db: Session = Depends(get_db)):
+def analyze_pathology(session_id: str, db: Session = Depends(get_db), api_key: str = Depends(verify_api_key)):
     # 1. Pull data from Context Service
     try:
-        with httpx.Client(timeout=30.0) as http_client:
+        headers = {"X-API-Key": os.environ.get("INTERNAL_API_KEY", "default_internal_secret_key")}
+        with httpx.Client(timeout=30.0, headers=headers) as http_client:
             response = http_client.get(f"{CONTEXT_SERVICE_URL}/context/{session_id}")
             response.raise_for_status()
             context_data = response.json()
@@ -100,11 +109,9 @@ Similar Cases Found ({len(similar_cases)}):
 
     # 4. Parse LLM JSON response
     try:
-        # Try to extract JSON from the response
-        if "{" in llm_response:
-            start = llm_response.find("{")
-            end = llm_response.rfind("}") + 1
-            analysis_json = json.loads(llm_response[start:end])
+        match = re.search(r'\{.*\}', llm_response, re.DOTALL)
+        if match:
+            analysis_json = json.loads(match.group(0))
         else:
             analysis_json = {"raw_analysis": llm_response}
     except json.JSONDecodeError:

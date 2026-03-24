@@ -82,7 +82,8 @@ async def check_and_synthesize(session_id: str):
 
         # 3. Fetch Context
         async with httpx.AsyncClient(timeout=30.0) as http_client:
-            response = await http_client.get(f"{CONTEXT_SERVICE_URL}/context/{session_id}")
+            headers = {"X-API-Key": os.environ.get("INTERNAL_API_KEY", "default_internal_secret_key")}
+            response = await http_client.get(f"{CONTEXT_SERVICE_URL}/context/{session_id}", headers=headers)
             response.raise_for_status()
             context_data = response.json()
 

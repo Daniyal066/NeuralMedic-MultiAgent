@@ -1,4 +1,5 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi.security import APIKeyHeader
 from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from pydantic import BaseModel
@@ -23,6 +24,12 @@ for _ in range(10):
         time.sleep(3)
 
 app = FastAPI(title="Interview Agent (Ingestion)")
+
+api_key_header = APIKeyHeader(name="X-API-Key")
+
+def verify_api_key(api_key: str = Depends(api_key_header)):
+    if api_key != os.environ.get("INTERNAL_API_KEY", "default_internal_secret_key"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid API Key")
 
 client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
@@ -51,7 +58,7 @@ class ChatResponse(BaseModel):
     status: str
 
 @app.post("/chat/{session_id}", response_model=ChatResponse)
-def handle_chat(session_id: str, payload: ChatMessage, db: Session = Depends(get_db)):
+def handle_chat(session_id: str, payload: ChatMessage, db: Session = Depends(get_db), api_key: str = Depends(verify_api_key)):
     # 1. Fetch or create the session record
     record = db.query(models.Healthcare).filter(models.Healthcare.session_id == session_id).first()
     if not record:
@@ -62,6 +69,9 @@ def handle_chat(session_id: str, payload: ChatMessage, db: Session = Depends(get
         )
         db.add(record)
         db.commit()
+    else:
+        if record.patient_id != payload.patient_id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Session belongs to a different patient.")
     
     # 2. Load transcript history
     try:
