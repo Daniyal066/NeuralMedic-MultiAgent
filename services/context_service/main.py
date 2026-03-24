@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi.security import APIKeyHeader
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import List, Optional, Any
@@ -21,6 +22,12 @@ for _ in range(10):
 
 app = FastAPI(title="Internal Context Service")
 
+api_key_header = APIKeyHeader(name="X-API-Key")
+
+def verify_api_key(api_key: str = Depends(api_key_header)):
+    if api_key != os.environ.get("INTERNAL_API_KEY", "default_internal_secret_key"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid API Key")
+
 class ContextResponse(BaseModel):
     patient_id: str
     session_id: str
@@ -34,7 +41,7 @@ class ContextResponse(BaseModel):
         from_attributes = True
 
 @app.get("/context/{session_id}", response_model=List[ContextResponse])
-def get_context(session_id: str, db: Session = Depends(get_db)):
+def get_context(session_id: str, db: Session = Depends(get_db), api_key: str = Depends(verify_api_key)):
     # 1. Fetch current session data
     records = db.query(models.Healthcare).filter(models.Healthcare.session_id == session_id).all()
     if not records:
