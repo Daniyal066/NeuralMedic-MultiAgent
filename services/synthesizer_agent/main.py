@@ -24,7 +24,11 @@ for _ in range(10):
         print("Database not ready, waiting 3s...", flush=True)
         time.sleep(3)
 
-client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
+# --- GROQ_API_KEY Validation ---
+_groq_key = os.environ.get("GROQ_API_KEY")
+if not _groq_key:
+    print("CRITICAL: GROQ_API_KEY is not set. The synthesizer will not be able to call the LLM.", flush=True)
+client = Groq(api_key=_groq_key)
 REDIS_HOST = os.getenv("REDIS_HOST", "redis")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 CONTEXT_SERVICE_URL = os.getenv("CONTEXT_SERVICE_URL", "http://context_service:8000")
@@ -55,14 +59,23 @@ Output should be a structured JSON object:
 async def check_and_synthesize(session_id: str):
     db = next(get_db())
     try:
-        # 1. Fetch all completed jobs for this session
-        jobs = db.query(models.JobStatus).filter(
-            models.JobStatus.session_id == session_id,
-            models.JobStatus.status == "DONE"
-        ).all()
-        
-        completed_worker_types = [j.worker_type for j in jobs]
-        
+        # 0. Idempotency guard — skip if already synthesized
+        existing = db.execute(
+            text("SELECT id FROM final_diagnoses WHERE session_id = :sid LIMIT 1"),
+            {"sid": session_id}
+        ).fetchone()
+        if existing:
+            print(f"Session {session_id} already has a final diagnosis. Skipping.", flush=True)
+            return
+
+        # 1. Fetch all completed jobs for this session (deduplicated by worker_type)
+        rows = db.execute(
+            text("SELECT DISTINCT ON (worker_type) worker_type, result FROM job_status WHERE session_id = :sid AND status = 'DONE' ORDER BY worker_type, updated_at DESC"),
+            {"sid": session_id}
+        ).fetchall()
+
+        completed_worker_types = [r[0] for r in rows]
+
         # 2. Check if all required workers are done
         is_complete = all(worker in completed_worker_types for worker in REQUIRED_WORKERS)
         if not is_complete:
@@ -73,20 +86,20 @@ async def check_and_synthesize(session_id: str):
 
         # 3. Fetch Context
         async with httpx.AsyncClient(timeout=30.0) as http_client:
-            headers = {"X-API-Key": os.environ.get("INTERNAL_API_KEY", "default_internal_secret_key")}
-            response = await http_client.get(f"{CONTEXT_SERVICE_URL}/context/{session_id}", headers=headers)
+            # headers = {"X-API-Key": os.environ.get("INTERNAL_API_KEY", "default_internal_secret_key")}
+            response = await http_client.get(f"{CONTEXT_SERVICE_URL}/context/{session_id}")
             response.raise_for_status()
             context_data = response.json()
 
         # 4. Prepare worker reports string
         reports = ""
-        for job in jobs:
-            reports += f"\n--- {job.worker_type} Report ---\n{json.dumps(job.result, indent=2)}\n"
+        for row in rows:
+            reports += f"\n--- {row[0]} Report ---\n{json.dumps(row[1], indent=2)}\n"
 
         # 5. Build Final Prompt
         user_prompt = f"""
 Patient Context:
-{json.dumps(context_data[0] if context_data else {}, indent=2)}
+{json.dumps(context_data[0] if isinstance(context_data, list) and context_data else {}, indent=2)}
 
 Specialized Worker Reports:
 {reports}
@@ -102,10 +115,11 @@ Please provide the final Chief Medical Officer synthesis.
             ],
             model="llama-3.3-70b-versatile",
             temperature=0.2,
+            timeout=15.0
         )
         llm_response = chat_completion.choices[0].message.content
 
-        # 7. Parse and Record Final Result
+        # 7. Parse LLM response
         try:
             if "{" in llm_response:
                 start = llm_response.find("{")
@@ -116,22 +130,44 @@ Please provide the final Chief Medical Officer synthesis.
         except json.JSONDecodeError:
             final_json = {"raw_synthesis": llm_response}
 
-        # Determine event type based on action
         action = final_json.get("action", "FINAL_DIAGNOSIS")
-        event_name = "RE_ENGAGE_EVENT" if action == "RECURSIVE_TRIGGER" else "FinalDiagnosisProduced"
+        confidence = float(final_json.get("confidence_score", 0.0))
 
-        # Write to Outbox
-        outbox_event = models.OutboxEvent(
-            aggregate_id=session_id,
-            event_type=event_name,
-            payload=final_json
-        )
-        db.add(outbox_event)
-        db.commit()
-        print(f"{event_name} produced for session {session_id}", flush=True)
+        if action == "RECURSIVE_TRIGGER" or confidence < 0.85:
+            # Write RE_ENGAGE_EVENT to outbox
+            outbox_event = models.OutboxEvent(
+                aggregate_id=session_id,
+                event_type="RE_ENGAGE_EVENT",
+                payload=final_json
+            )
+            db.add(outbox_event)
+            db.commit()
+            print(f"RE_ENGAGE_EVENT triggered for session {session_id} (confidence={confidence})", flush=True)
+        else:
+            # 8a. Write final diagnosis directly to final_diagnoses table
+            clinical_summary = final_json.get("diagnosis_summary") or final_json.get("clinical_summary") or json.dumps(final_json)
+            db.execute(
+                text("INSERT INTO final_diagnoses (session_id, clinical_summary, confidence_score) VALUES (:sid, :summary, :score)"),
+                {"sid": session_id, "summary": clinical_summary, "score": confidence}
+            )
+            # 8b. Also write to outbox for downstream consumers
+            outbox_event = models.OutboxEvent(
+                aggregate_id=session_id,
+                event_type="FinalDiagnosisProduced",
+                payload=final_json
+            )
+            db.add(outbox_event)
+            db.commit()
+            print(f"FinalDiagnosisProduced and saved to final_diagnoses for session {session_id}", flush=True)
 
     except Exception as e:
         print(f"Synthesis error for session {session_id}: {e}", flush=True)
+        # Force FAILED status so the Orchestrator doesn't hang forever
+        db.execute(
+            text("UPDATE job_status SET status = 'FAILED', updated_at = NOW() WHERE session_id = :sid AND worker_type IN ('pathology_worker', 'risk_worker')"),
+            {"sid": session_id}
+        )
+        db.commit()
     finally:
         db.close()
 
@@ -169,26 +205,9 @@ async def redis_listener():
                         "RiskAnalysisCompleted": "risk_worker"
                     }
 
-                    if event_type in worker_mapping:
-                        db = next(get_db())
-                        target_worker = worker_mapping[event_type]
-                        # UPSERT job status
-                        job = db.query(models.JobStatus).filter(
-                            models.JobStatus.session_id == session_id,
-                            models.JobStatus.worker_type == target_worker
-                        ).first()
-                        
-                        if not job:
-                            job = models.JobStatus(session_id=session_id, worker_type=target_worker)
-                            db.add(job)
-                        
-                        job.status = "DONE"
-                        job.result = payload
-                        job.updated_at = text("NOW()")
-                        db.commit()
-                        db.close()
-                        
-                        # Trigger check for synthesis
+                    if event_type in worker_mapping and session_id:
+                        # Trigger synthesis check — the workers already wrote DONE to job_status
+                        # via raw SQL; do NOT upsert here to avoid duplicate rows.
                         asyncio.create_task(check_and_synthesize(session_id))
         except Exception as e:
             print(f"Redis listener ERROR, reconnecting in 5s: {e}", flush=True)
