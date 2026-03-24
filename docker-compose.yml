@@ -198,8 +198,6 @@ services:
     depends_on:
       - postgres
       - redis
-    env_file:
-      - .env
     environment:
       DB_HOST: postgres
       DB_PORT: ${POSTGRES_PORT:-5432}
