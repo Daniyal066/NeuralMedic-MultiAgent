@@ -213,6 +213,38 @@ services:
     networks:
       - neuralmedic_network
 
+  localstack:
+    image: localstack/localstack:latest
+    container_name: neuralmedic_localstack
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=s3
+      - DEBUG=1
+      - DEFAULT_REGION=us-east-1
+    networks:
+      - neuralmedic_network
+
+  document_service:
+    build:
+      context: ./services/document_service
+    container_name: neuralmedic_document_service
+    restart: always
+    depends_on:
+      - localstack
+    environment:
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME}
+      - S3_ENDPOINT_URL=http://localstack:4566
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_ALGORITHM=${JWT_ALGORITHM}
+    ports:
+      - "${DOCUMENT_SERVICE_PORT:-8006}:8000"
+    networks:
+      - neuralmedic_network
+
 networks:
   neuralmedic_network:
     driver: bridge

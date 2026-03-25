@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+boto3
+python-jose[cryptography]
+pydantic
+pydantic-settings
+python-dotenv
+requests
