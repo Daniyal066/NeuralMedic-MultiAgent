@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Doctor Access - Emerald Sentinel</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;700;800&amp;family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "tertiary": "#ffb3af",
+              "on-primary-container": "#00422b",
+              "primary-fixed": "#6ffbbe",
+              "surface-dim": "#0b1326",
+              "surface-container-highest": "#2d3449",
+              "on-tertiary-container": "#711419",
+              "tertiary-fixed-dim": "#ffb3af",
+              "on-secondary": "#213145",
+              "inverse-primary": "#006c49",
+              "inverse-on-surface": "#283044",
+              "primary-container": "#10b981",
+              "on-error-container": "#ffdad6",
+              "primary-fixed-dim": "#4edea3",
+              "on-tertiary": "#650911",
+              "secondary-fixed-dim": "#b7c8e1",
+              "on-secondary-fixed-variant": "#38485d",
+              "tertiary-fixed": "#ffdad7",
+              "surface": "#0b1326",
+              "secondary": "#b7c8e1",
+              "on-tertiary-fixed": "#410005",
+              "on-secondary-container": "#a9bad3",
+              "on-surface-variant": "#bbcabf",
+              "surface-container-high": "#222a3d",
+              "inverse-surface": "#dae2fd",
+              "surface-variant": "#2d3449",
+              "error": "#ffb4ab",
+              "secondary-container": "#3a4a5f",
+              "on-primary-fixed": "#002113",
+              "on-error": "#690005",
+              "on-tertiary-fixed-variant": "#842225",
+              "surface-container": "#171f33",
+              "surface-bright": "#31394d",
+              "tertiary-container": "#fc7c78",
+              "on-primary-fixed-variant": "#005236",
+              "primary": "#4edea3",
+              "surface-tint": "#4edea3",
+              "outline": "#86948a",
+              "on-surface": "#dae2fd",
+              "outline-variant": "#3c4a42",
+              "on-background": "#dae2fd",
+              "surface-container-low": "#131b2e",
+              "on-primary": "#003824",
+              "background": "#0b1326",
+              "secondary-fixed": "#d3e4fe",
+              "surface-container-lowest": "#060e20",
+              "on-secondary-fixed": "#0b1c30",
+              "error-container": "#93000a"
+            },
+            fontFamily: {
+              "headline": ["Manrope"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
+      .glass-card {
+        background: rgba(45, 52, 73, 0.4);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+      }
+      .qr-gradient {
+        background: linear-gradient(135deg, #4edea3 0%, #10b981 100%);
+      }
+      body {
+        background-color: #0b1326;
+        color: #dae2fd;
+        font-family: 'Inter', sans-serif;
+      }
+    </style>
+</head>
+<body class="selection:bg-primary/30">
+<!-- Top Navigation Bar -->
+<header class="fixed top-0 w-full z-50 bg-[#0b1326]/80 backdrop-blur-xl border-b border-[#3c4a42]/15 shadow-[0px_20px_40px_rgba(6,14,32,0.4)]">
+<div class="flex justify-between items-center px-6 h-16 w-full">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[#4edea3]">shield</span>
+<span class="text-[#4edea3] font-black tracking-tighter text-xl font-['Manrope']">Emerald Sentinel</span>
+</div>
+<div class="hidden md:flex items-center space-x-8">
+<a class="text-[#dae2fd]/70 hover:text-[#4edea3] transition-colors duration-300 font-['Inter'] text-sm font-medium" href="#">Health</a>
+<a class="text-[#dae2fd]/70 hover:text-[#4edea3] transition-colors duration-300 font-['Inter'] text-sm font-medium" href="#">History</a>
+<a class="text-[#dae2fd]/70 hover:text-[#4edea3] transition-colors duration-300 font-['Inter'] text-sm font-medium" href="#">Consult</a>
+<a class="text-[#4edea3] font-bold font-['Inter'] text-sm" href="#">Doctor Access</a>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-[#dae2fd]/70 cursor-pointer scale-95 active:scale-90 transition-transform">qr_code_2</span>
+<span class="material-symbols-outlined text-[#dae2fd]/70 cursor-pointer scale-95 active:scale-90 transition-transform">account_circle</span>
+</div>
+</div>
+</header>
+<!-- Sidebar (Large Screens Only) -->
+<aside class="fixed left-0 top-0 h-full z-40 h-full w-64 hidden lg:flex flex-col bg-[#0b1326] border-r border-[#3c4a42]/15">
+<div class="p-8 pt-24">
+<h2 class="font-['Manrope'] font-bold text-[#4edea3] text-lg">Patient Portal</h2>
+<p class="text-[#dae2fd]/40 text-xs font-['Inter'] mb-8">ID: #882-ES</p>
+<nav class="space-y-1">
+<a class="flex items-center gap-3 px-4 py-3 text-[#dae2fd]/60 hover:bg-[#131b2e]/50 hover:pl-2 transition-all duration-300 rounded-xl" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-['Inter'] text-sm">Overview</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-[#dae2fd]/60 hover:bg-[#131b2e]/50 hover:pl-2 transition-all duration-300 rounded-xl" href="#">
+<span class="material-symbols-outlined">mic_external_on</span>
+<span class="font-['Inter'] text-sm">Symptom Checker</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-[#dae2fd]/60 hover:bg-[#131b2e]/50 hover:pl-2 transition-all duration-300 rounded-xl" href="#">
+<span class="material-symbols-outlined">folder_managed</span>
+<span class="font-['Inter'] text-sm">Medical Records</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-[#dae2fd]/60 hover:bg-[#131b2e]/50 hover:pl-2 transition-all duration-300 rounded-xl" href="#">
+<span class="material-symbols-outlined">biotech</span>
+<span class="font-['Inter'] text-sm">Lab Results</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 bg-[#131b2e] text-[#4edea3] border-l-4 border-[#4edea3] rounded-r-xl" href="#">
+<span class="material-symbols-outlined">qr_code_scanner</span>
+<span class="font-['Inter'] text-sm font-semibold">Doctor Access</span>
+</a>
+</nav>
+</div>
+<div class="mt-auto p-6">
+<button class="w-full bg-error-container text-error py-3 rounded-xl font-bold flex items-center justify-center gap-2 scale-95 active:scale-90 transition-transform">
+<span class="material-symbols-outlined">emergency_home</span>
+                Emergency SOS
+            </button>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="lg:ml-64 pt-24 pb-32 px-6 min-h-screen bg-[#0b1326]">
+<div class="max-w-5xl mx-auto">
+<!-- Hero Header -->
+<div class="mb-12">
+<h1 class="font-['Manrope'] text-4xl font-extrabold text-[#dae2fd] tracking-tight mb-2">Doctor Handoff</h1>
+<p class="text-[#dae2fd]/60 font-['Inter'] max-w-2xl">Securely share your real-time health data with a medical professional. This session is encrypted and will expire automatically.</p>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+<!-- Left: QR Access Card (Bento Focus) -->
+<div class="lg:col-span-5 space-y-6">
+<div class="glass-card rounded-[2rem] p-8 relative overflow-hidden flex flex-col items-center justify-center border border-white/5 shadow-2xl">
+<div class="absolute inset-0 opacity-10 qr-gradient blur-3xl -z-10"></div>
+<div class="mb-8 text-center">
+<span class="inline-block px-3 py-1 rounded-full bg-[#4edea3]/10 text-[#4edea3] text-[10px] font-bold tracking-widest uppercase mb-4">Live Access Token</span>
+<div class="relative group cursor-pointer">
+<div class="absolute -inset-1 bg-gradient-to-r from-[#4edea3] to-[#10b981] rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
+<div class="relative p-4 bg-[#0b1326] rounded-2xl border border-[#3c4a42]/20">
+<!-- Literal Transcription for Icons -->
+<div class="w-48 h-48 flex items-center justify-center text-[#4edea3]">
+<span class="material-symbols-outlined !text-9xl" style="font-variation-settings: 'FILL' 1;">qr_code_2</span>
+</div>
+</div>
+</div>
+</div>
+<div class="flex flex-col items-center gap-4 w-full">
+<div class="flex items-center gap-3 text-sm text-[#dae2fd]/80">
+<span class="material-symbols-outlined text-[#4edea3] animate-pulse">sync</span>
+                                Refreshing in <span class="font-mono text-[#4edea3] font-bold">42s</span>
+</div>
+<button class="w-full qr-gradient py-4 rounded-xl font-bold text-on-primary-container flex items-center justify-center gap-3 hover:brightness-110 active:scale-[0.98] transition-all">
+<span class="material-symbols-outlined">share</span>
+                                Generate Link Access
+                            </button>
+</div>
+</div>
+<!-- Privacy Log Card -->
+<div class="bg-surface-container-low rounded-[1.5rem] p-6 border border-white/5">
+<div class="flex items-center justify-between mb-6">
+<h3 class="font-['Manrope'] font-bold text-sm tracking-wide flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">history</span>
+                                ACCESS LOG
+                            </h3>
+<span class="text-[10px] text-[#dae2fd]/40 font-bold uppercase tracking-widest">Last 48 Hours</span>
+</div>
+<div class="space-y-4">
+<div class="flex items-center justify-between p-3 rounded-xl bg-surface-container-lowest/50 border-l-2 border-[#4edea3]">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-xs">person</span>
+</div>
+<div>
+<p class="text-xs font-bold">Dr. Elena Vance</p>
+<p class="text-[10px] text-[#dae2fd]/40 italic">Full Medical Handoff</p>
+</div>
+</div>
+<span class="text-[10px] text-[#dae2fd]/60 font-mono">14:02 Today</span>
+</div>
+<div class="flex items-center justify-between p-3 rounded-xl bg-surface-container-lowest/50">
+<div class="flex items-center gap-3 opacity-60">
+<div class="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-xs">local_hospital</span>
+</div>
+<div>
+<p class="text-xs font-bold">Mercy General API</p>
+<p class="text-[10px] text-[#dae2fd]/40 italic">Lab Results Sync</p>
+</div>
+</div>
+<span class="text-[10px] text-[#dae2fd]/60 font-mono">Yesterday</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Right: Patient History Preview (Editorial Style) -->
+<div class="lg:col-span-7 space-y-8">
+<div class="p-2">
+<div class="flex items-center gap-4 mb-8">
+<div class="h-[1px] flex-1 bg-gradient-to-r from-transparent via-[#3c4a42]/30 to-transparent"></div>
+<span class="text-[10px] uppercase font-bold tracking-[0.2em] text-[#4edea3]/60">Summary Preview for Provider</span>
+<div class="h-[1px] flex-1 bg-gradient-to-r from-transparent via-[#3c4a42]/30 to-transparent"></div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<!-- Vitals Velocity -->
+<div class="bg-surface-container-low p-6 rounded-3xl border border-white/5 md:col-span-2">
+<div class="flex justify-between items-start mb-6">
+<div>
+<p class="text-[10px] font-black tracking-widest text-[#dae2fd]/40 uppercase mb-1">BMI / Vitals Velocity</p>
+<h4 class="font-['Manrope'] text-2xl font-bold">Stable Trend</h4>
+</div>
+<div class="text-right">
+<p class="text-[10px] text-[#4edea3] font-bold">+2.4% Optimal Range</p>
+<span class="material-symbols-outlined text-[#4edea3]">trending_up</span>
+</div>
+</div>
+<div class="h-24 w-full flex items-end gap-1 px-2">
+<!-- Sparkline Sim -->
+<div class="flex-1 bg-primary/20 rounded-t-sm" style="height: 40%"></div>
+<div class="flex-1 bg-primary/30 rounded-t-sm" style="height: 55%"></div>
+<div class="flex-1 bg-primary/25 rounded-t-sm" style="height: 50%"></div>
+<div class="flex-1 bg-primary/40 rounded-t-sm" style="height: 65%"></div>
+<div class="flex-1 bg-primary/35 rounded-t-sm" style="height: 60%"></div>
+<div class="flex-1 qr-gradient rounded-t-sm" style="height: 85%"></div>
+</div>
+<div class="flex justify-between mt-4 text-[10px] font-mono text-[#dae2fd]/30 px-2">
+<span>30D AGO</span>
+<span>TODAY</span>
+</div>
+</div>
+<!-- Chronic Conditions -->
+<div class="bg-surface-container-low p-6 rounded-3xl border border-white/5">
+<h3 class="font-['Manrope'] font-bold text-sm tracking-wide flex items-center gap-2 mb-6">
+<span class="material-symbols-outlined text-sm text-[#4edea3]">pill</span>
+                                    CHRONIC CONDITIONS
+                                </h3>
+<ul class="space-y-3">
+<li class="flex items-center gap-3">
+<span class="w-1.5 h-1.5 rounded-full bg-[#4edea3]"></span>
+<span class="text-xs font-semibold text-[#dae2fd]/90">Type 2 Diabetes</span>
+</li>
+<li class="flex items-center gap-3">
+<span class="w-1.5 h-1.5 rounded-full bg-[#4edea3]"></span>
+<span class="text-xs font-semibold text-[#dae2fd]/90">Hypertension</span>
+</li>
+<li class="flex items-center gap-3 opacity-40">
+<span class="w-1.5 h-1.5 rounded-full bg-white/20"></span>
+<span class="text-xs font-semibold">Mild Asthma (History)</span>
+</li>
+</ul>
+</div>
+<!-- Recent Symptom Logs -->
+<div class="bg-surface-container-low p-6 rounded-3xl border border-white/5">
+<h3 class="font-['Manrope'] font-bold text-sm tracking-wide flex items-center gap-2 mb-6">
+<span class="material-symbols-outlined text-sm text-tertiary">warning</span>
+                                    SYMPTOM LOGS
+                                </h3>
+<div class="space-y-3">
+<div class="flex items-center justify-between">
+<span class="text-xs font-semibold">Joint Pain</span>
+<span class="px-2 py-0.5 rounded text-[8px] bg-tertiary-container/20 text-tertiary border border-tertiary/20">MODERATE</span>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-xs font-semibold">Insomnia</span>
+<span class="px-2 py-0.5 rounded text-[8px] bg-primary/10 text-[#4edea3] border border-[#4edea3]/20">MILD</span>
+</div>
+<p class="text-[10px] text-[#dae2fd]/40 mt-4 leading-relaxed italic">
+                                        "Noticed increased discomfort after morning walks this week..."
+                                    </p>
+</div>
+</div>
+<!-- Editorial Image Visual -->
+<div class="md:col-span-2 relative h-48 rounded-3xl overflow-hidden group">
+<img alt="Clinical Environment" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" data-alt="Modern high-tech medical laboratory with futuristic equipment and clinical teal soft lighting on polished surfaces" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCAvQPp_aOymR5F3V-5nmFnzJcBvUS5G0EGZYrzvzz8SS7x43_L1Akow2ND6k4-8B63C6PZ2861sg-d0_L0s8GcmMehVpcn3M7CWf1KR0ghzVu_pRYDbpsiTe2DEC386iuvA6IRVqubeMwsomJQEf1iKfnMo3F1-2pphmsywasipVfxxQeX2bsj0VjM9sszLMIjuOA3L8UNeggWfhLXxFJZ3boGPRo4D8yWZa0qRfvha6NJLkVZLOSDz6iF518plptTrYKfVWvQafSG"/>
+<div class="absolute inset-0 bg-gradient-to-t from-[#0b1326] via-transparent to-transparent"></div>
+<div class="absolute bottom-6 left-6 right-6 flex justify-between items-end">
+<div>
+<p class="text-[10px] font-black text-[#4edea3] tracking-[0.2em] uppercase">Verified Identity</p>
+<h4 class="text-xl font-['Manrope'] font-bold">Secure Sentinel Core</h4>
+</div>
+<span class="material-symbols-outlined !text-3xl opacity-40" style="font-variation-settings: 'FILL' 1;">verified_user</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Bottom Navigation Bar (Mobile only) -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-6 pt-2 bg-[#131b2e]/90 backdrop-blur-2xl border-t border-[#3c4a42]/10 shadow-[0px_-10px_30px_rgba(0,0,0,0.3)] rounded-t-3xl">
+<a class="flex flex-col items-center justify-center text-[#dae2fd]/50 px-4 py-2 tap-highlight-none active:scale-95 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined">monitoring</span>
+<span class="font-['Inter'] text-[10px] uppercase tracking-[0.05em] font-semibold mt-1">Health</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#dae2fd]/50 px-4 py-2 tap-highlight-none active:scale-95 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined">history_edu</span>
+<span class="font-['Inter'] text-[10px] uppercase tracking-[0.05em] font-semibold mt-1">History</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#dae2fd]/50 px-4 py-2 tap-highlight-none active:scale-95 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined">forum</span>
+<span class="font-['Inter'] text-[10px] uppercase tracking-[0.05em] font-semibold mt-1">Consult</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-gradient-to-br from-[#4edea3]/20 to-[#10b981]/10 text-[#4edea3] rounded-xl px-4 py-2 tap-highlight-none active:scale-95 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">qr_code_scanner</span>
+<span class="font-['Inter'] text-[10px] uppercase tracking-[0.05em] font-semibold mt-1">Share</span>
+</a>
+</nav>
+</body></html>
