@@ -24,7 +24,7 @@ services:
 
   outbox_poller:
     build:
-      context: ./services/outbox_service
+      context: ./backend/outbox_service
     container_name: neuralmedic_outbox_poller
     restart: always
     depends_on:
@@ -43,7 +43,7 @@ services:
 
   context_service:
     build:
-      context: ./services/context_service
+      context: ./backend/context_service
     container_name: neuralmedic_context_service
     restart: always
     depends_on:
@@ -63,7 +63,7 @@ services:
 
   embedding_service:
     build:
-      context: ./services/embedding_service
+      context: ./backend/embedding_service
     container_name: neuralmedic_embedding_service
     restart: always
     depends_on:
@@ -79,7 +79,7 @@ services:
 
   interview_agent:
     build:
-      context: ./services/interview_agent
+      context: ./agents/interview_agent
     container_name: neuralmedic_interview_agent
     restart: always
     depends_on:
@@ -102,7 +102,7 @@ services:
 
   pathology_worker:
     build:
-      context: ./services/pathology_worker
+      context: ./backend/pathology_worker
     container_name: neuralmedic_pathology_worker
     restart: always
     depends_on:
@@ -124,7 +124,7 @@ services:
 
   risk_worker:
     build:
-      context: ./services/risk_worker
+      context: ./backend/risk_worker
     container_name: neuralmedic_risk_worker
     restart: always
     depends_on:
@@ -146,7 +146,7 @@ services:
 
   orchestrator:
     build:
-      context: ./services/orchestrator
+      context: ./backend/orchestrator
     deploy:
       mode: replicated
       replicas: 3
@@ -165,9 +165,10 @@ services:
       INTERNAL_API_KEY: ${INTERNAL_API_KEY:-"default_internal_secret_key"}
     networks:
       - neuralmedic_network
+
   synthesizer_agent:
     build:
-      context: ./services/synthesizer_agent
+      context: ./agents/synthesizer_agent
     container_name: neuralmedic_synthesizer_agent
     restart: always
     depends_on:
