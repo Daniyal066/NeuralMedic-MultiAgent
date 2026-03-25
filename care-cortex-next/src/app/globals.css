@@ -1,0 +1,66 @@
+@import "tailwindcss";
+
+@theme {
+  --color-tertiary: #ffb3af;
+  --color-on-primary-container: #00422b;
+  --color-primary-fixed: #6ffbbe;
+  --color-surface-dim: #0b1326;
+  --color-surface-container-highest: #2d3449;
+  --color-outline-variant: #3c4a42;
+  --color-on-surface-variant: #bbcabf;
+  --color-surface-container: #171f33;
+  --color-on-tertiary-container: #711419;
+  --color-tertiary-fixed-dim: #ffb3af;
+  --color-on-secondary: #213145;
+  --color-inverse-primary: #006c49;
+  --color-inverse-on-surface: #283044;
+  --color-primary-container: #10b981;
+  --color-on-error-container: #ffdad6;
+  --color-primary-fixed-dim: #4edea3;
+  --color-on-tertiary: #650911;
+  --color-secondary-fixed-dim: #b7c8e1;
+  --color-on-secondary-fixed-variant: #38485d;
+  --color-tertiary-fixed: #ffdad7;
+  --color-surface: #0b1326;
+  --color-secondary: #b7c8e1;
+  --color-on-tertiary-fixed: #410005;
+  --color-on-secondary-container: #a9bad3;
+  --color-surface-container-high: #222a3d;
+  --color-inverse-surface: #dae2fd;
+  --color-surface-variant: #2d3449;
+  --color-error: #ffb4ab;
+  --color-secondary-container: #3a4a5f;
+  --color-on-primary-fixed: #002113;
+  --color-on-error: #690005;
+  --color-on-tertiary-fixed-variant: #842225;
+  --color-surface-bright: #31394d;
+  --color-tertiary-container: #fc7c78;
+  --color-on-primary-fixed-variant: #005236;
+  --color-primary: #4edea3;
+  --color-surface-tint: #4edea3;
+  --color-outline: #86948a;
+  --color-on-surface: #dae2fd;
+  --color-on-background: #dae2fd;
+  --color-surface-container-low: #131b2e;
+  --color-on-primary: #003824;
+  --color-background: #0b1326;
+  --color-secondary-fixed: #d3e4fe;
+  --color-surface-container-lowest: #060e20;
+  --color-on-secondary-fixed: #0b1c30;
+  --color-error-container: #93000a;
+  
+  --font-headline: 'Manrope', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --font-label: 'Inter', sans-serif;
+}
+
+.material-symbols-outlined {
+    font-family: 'Material Symbols Outlined' !important;
+    font-feature-settings: 'liga' 1 !important;
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+.fill-current {
+    font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24 !important;
+}
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
