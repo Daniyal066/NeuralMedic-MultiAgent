@@ -11,6 +11,11 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - neuralmedic_network
 
@@ -28,8 +33,10 @@ services:
     container_name: neuralmedic_outbox_poller
     restart: always
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
     environment:
       DB_HOST: postgres
       DB_PORT: ${POSTGRES_PORT:-5432}
@@ -47,7 +54,8 @@ services:
     container_name: neuralmedic_context_service
     restart: always
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     environment:
       DB_HOST: postgres
       DB_PORT: ${POSTGRES_PORT:-5432}
@@ -56,6 +64,11 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       GROQ_API_KEY: ${GROQ_API_KEY}
       INTERNAL_API_KEY: ${INTERNAL_API_KEY:-"default_internal_secret_key"}
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import http.client; conn = http.client.HTTPConnection(\"localhost\", 8000); conn.request(\"GET\", \"/health\"); res = conn.getresponse(); exit(0 if res.status == 200 else 1)'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     ports:
       - "8000:8000"
     networks:
@@ -67,7 +80,8 @@ services:
     container_name: neuralmedic_embedding_service
     restart: always
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     environment:
       DB_HOST: postgres
       DB_PORT: ${POSTGRES_PORT:-5432}
@@ -83,8 +97,10 @@ services:
     container_name: neuralmedic_interview_agent
     restart: always
     depends_on:
-      - postgres
-      - chromadb
+      postgres:
+        condition: service_healthy
+      chromadb:
+        condition: service_started
     environment:
       DB_HOST: postgres
       DB_PORT: ${POSTGRES_PORT:-5432}
@@ -106,8 +122,10 @@ services:
     container_name: neuralmedic_pathology_worker
     restart: always
     depends_on:
-      - postgres
-      - context_service
+      postgres:
+        condition: service_healthy
+      context_service:
+        condition: service_healthy
     environment:
       DB_HOST: postgres
       DB_PORT: ${POSTGRES_PORT:-5432}
@@ -128,8 +146,10 @@ services:
     container_name: neuralmedic_risk_worker
     restart: always
     depends_on:
-      - postgres
-      - context_service
+      postgres:
+        condition: service_healthy
+      context_service:
+        condition: service_healthy
     environment:
       DB_HOST: postgres
       DB_PORT: ${POSTGRES_PORT:-5432}
@@ -152,8 +172,10 @@ services:
       replicas: 3
     restart: always
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
     environment:
       DB_HOST: postgres
       DB_PORT: ${POSTGRES_PORT:-5432}
@@ -172,9 +194,12 @@ services:
     container_name: neuralmedic_synthesizer_agent
     restart: always
     depends_on:
-      - postgres
-      - redis
-      - context_service
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      context_service:
+        condition: service_healthy
     environment:
       DB_HOST: postgres
       DB_PORT: ${POSTGRES_PORT:-5432}
@@ -200,6 +225,24 @@ services:
       - "8003:8000"
     volumes:
       - chroma_data:/chroma/chroma
+    networks:
+      - neuralmedic_network
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: neuralmedic_frontend
+    restart: always
+    depends_on:
+      interview_agent:
+        condition: service_started
+      context_service:
+        condition: service_healthy
+    environment:
+      INTERVIEW_AGENT_URL: http://interview_agent:8001
+      CONTEXT_SERVICE_URL: http://context_service:8000
+    ports:
+      - "3001:3000"
     networks:
       - neuralmedic_network
 

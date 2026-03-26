@@ -22,6 +22,10 @@ for _ in range(10):
 
 app = FastAPI(title="Internal Context Service")
 
+@app.get("/health")
+def health_check():
+    return {"status": "healthy"}
+
 api_key_header = APIKeyHeader(name="X-API-Key")
 
 def verify_api_key(api_key: str = Depends(api_key_header)):
