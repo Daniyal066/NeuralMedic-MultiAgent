@@ -10,23 +10,21 @@ This project uses a containerized infrastructure for the database (PostgreSQL) a
 ## Quick Start
 
 ### 1. Start Infrastructure
-Start the PostgreSQL and Redis containers:
+Start the entire stack (Database, Redis, Backend Services, and Frontend):
 ```bash
 docker compose up -d
 ```
 
-### 2. Install Python Dependencies
-Install the required libraries:
-```bash
-pip install -r requirements.txt
-```
-
-### 3. Verify Setup
+### 2. Verify Setup
 Check if the containers are running:
 ```bash
 docker ps
 ```
-You should see `neuralmedic_postgres` and `neuralmedic_redis`.
+You should see `neuralmedic_postgres`, `neuralmedic_redis`, `neuralmedic_frontend`, and the various backend agents.
+
+### 3. Access the Application
+- **Frontend**: http://localhost:3001
+- **API Services**: Ports 8000-8005
 
 ## Architecture
 - **PostgreSQL**: Port `5432`. Stores `sessions`, `job_status`, and `outbox`.
