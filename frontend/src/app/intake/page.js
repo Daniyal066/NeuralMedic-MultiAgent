@@ -1,239 +1,278 @@
-import React from 'react';
-import Link from 'next/link';
+'use client';
 
-export default function IntakePhase() {
+import React, { useState, useRef, useEffect } from 'react';
+import { sendChatMessage } from '../actions';
+
+const initialMessages = [
+  {
+    sender: 'agent',
+    text: "Hello Elena! I'm your CareCortex clinical assistant. I'll help evaluate your symptoms and prepare a report for your doctor.\n\nHow are you feeling today? Please describe your symptoms in as much detail as possible.",
+    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+  }
+];
+
+export default function IntakePage() {
+  const [messages, setMessages] = useState(initialMessages);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [sessionId] = useState('SES-89214');
+  const [patientId] = useState('PAT-882');
+  const [extracted, setExtracted] = useState({ symptoms: '—', duration: '—', severity: '—', location: '—' });
+  const chatRef = useRef(null);
+
+  useEffect(() => {
+    chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight, behavior: 'smooth' });
+  }, [messages, loading]);
+
+  const send = async (text = null) => {
+    const msg = text || input;
+    if (!msg.trim() || loading) return;
+    setInput('');
+
+    const userMsg = { sender: 'user', text: msg, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
+    setMessages(prev => [...prev, userMsg]);
+    setLoading(true);
+
+    // Update extracted symptoms from message
+    const lower = msg.toLowerCase();
+    const newExtracted = { ...extracted };
+    if (lower.includes('headache') || lower.includes('head')) { newExtracted.symptoms = 'Headache'; newExtracted.location = 'Head'; }
+    if (lower.includes('back')) { newExtracted.symptoms = 'Back pain'; newExtracted.location = 'Lower back'; }
+    if (lower.includes('fever')) { newExtracted.symptoms = (newExtracted.symptoms === '—' ? '' : newExtracted.symptoms + ', ') + 'Fever'; }
+    if (lower.includes('day') || lower.includes('week')) {
+      const dayMatch = lower.match(/(\d+)\s*(day|days|week|weeks)/);
+      if (dayMatch) newExtracted.duration = dayMatch[0];
+    }
+    if (/\b([1-9]|10)\s*\/\s*10\b/.test(lower)) {
+      const m = lower.match(/(\d+)\s*\/\s*10/);
+      if (m) newExtracted.severity = `${m[1]}/10`;
+    }
+    setExtracted(newExtracted);
+
+    try {
+      const result = await sendChatMessage(sessionId, patientId, msg);
+      let reply = result?.reply || `Thank you for sharing that. Could you tell me when these symptoms started and how severe they are on a scale of 1–10?`;
+      setMessages(prev => [...prev, { sender: 'agent', text: reply, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
+    } catch {
+      setMessages(prev => [...prev, { sender: 'agent', text: "I've noted your symptoms. On a scale of 1–10, how would you rate the severity, and when did they start?", time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const suggestions = [
+    "I have a severe headache with fever for 2 days",
+    "Sharp lower back pain when I stand up",
+    "I feel dizzy and nauseous since yesterday",
+  ];
+
+  const steps = [
+    { label: 'Describe Symptoms', icon: 'chat', done: messages.length > 1, active: messages.length <= 1 },
+    { label: 'AI Analysis', icon: 'psychology', done: messages.length > 3, active: messages.length > 1 && messages.length <= 3 },
+    { label: 'Report Ready', icon: 'clinical_notes', done: false, active: false },
+  ];
+
   return (
-    <div className="bg-surface text-on-surface font-body selection:bg-primary-container selection:text-on-primary-container overflow-hidden min-h-screen flex flex-col">
-      {/* TopAppBar */}
-      <header className="fixed top-0 w-full z-50 bg-[#0b1326]/80 backdrop-blur-xl border-b border-[#3c4a42]/15 shadow-[0px_20px_40px_rgba(6,14,32,0.4)]">
-        <div className="flex justify-between items-center px-6 h-16 w-full">
-          <div className="flex items-center gap-3">
-            <span className="text-[#4edea3] font-black tracking-tighter text-xl font-headline">Emerald Sentinel</span>
-            <div className="h-4 w-[1px] bg-outline-variant mx-2"></div>
-            <span className="text-on-surface-variant font-label text-[10px] uppercase tracking-widest px-2 py-0.5 rounded border border-outline-variant/30">Discovery Phase</span>
-          </div>
-          <nav className="hidden md:flex items-center gap-8">
-            <Link className="text-[#4edea3] font-bold font-headline transition-colors duration-300" href="/health">Health</Link>
-            <Link className="text-[#dae2fd]/70 font-headline hover:text-[#4edea3] transition-colors duration-300" href="/history">History</Link>
-            <Link className="text-[#dae2fd]/70 font-headline hover:text-[#4edea3] transition-colors duration-300" href="/intake">Consult</Link>
-            <Link className="text-[#dae2fd]/70 font-headline hover:text-[#4edea3] transition-colors duration-300" href="/share">Settings</Link>
-          </nav>
-          <div className="flex items-center gap-4">
-            <button className="material-symbols-outlined text-on-surface-variant scale-95 active:scale-90 transition-transform">qr_code_2</button>
-            <div className="w-8 h-8 rounded-full overflow-hidden border border-primary/30">
-              <img className="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB-V2Ye30hrA0R47TYwQEeKfTRaPbvQzqrbUseVnzIz2o6tZw_Uj5CuOzLxPAhMaAl5SiMvl5ZLnnO0AGj4SiGcDPUVV627CEq2vEbcYcnK7au6oLpc47SrPuY7DQmC5Hg3Xgi3cFWkp7QNju7kTNSoFr19q6DHANeGWUXWrypPAuoTABuoCkM9yerojNWAway2-GPoDNm1cV_UPhNjRlHckiCtTDUqBVUPwJ8NZNzQ7oTJKAqcCUuYn99jw4MOUJ5BTsORD2VjxJf_" />
-            </div>
-          </div>
-        </div>
-      </header>
+    <div className="page-root">
+      <div className="page-container">
 
-      {/* SideNavBar (Hidden on Mobile) */}
-      <aside className="fixed left-0 top-0 h-full z-40 bg-[#0b1326] w-64 hidden lg:flex flex-col border-r border-[#3c4a42]/15 pt-20">
-        <div className="px-6 mb-8">
-          <h2 className="font-headline font-bold text-[#4edea3]">Patient Portal</h2>
-          <p className="text-xs text-on-surface-variant opacity-70">ID: #882-ES</p>
-        </div>
-        <nav className="flex-1 space-y-1">
-          <Link className="flex items-center gap-4 px-6 py-4 text-[#dae2fd]/60 hover:bg-[#131b2e]/50 hover:pl-8 transition-all duration-300" href="/">
-            <span className="material-symbols-outlined">dashboard</span>
-            <span className="text-sm">Overview</span>
-          </Link>
-          <Link className="flex items-center gap-4 px-6 py-4 bg-[#131b2e] text-[#4edea3] border-l-4 border-[#4edea3]" href="/intake">
-            <span className="material-symbols-outlined">mic_external_on</span>
-            <span className="text-sm">Symptom Checker</span>
-          </Link>
-          <Link className="flex items-center gap-4 px-6 py-4 text-[#dae2fd]/60 hover:bg-[#131b2e]/50 hover:pl-8 transition-all duration-300" href="/history">
-            <span className="material-symbols-outlined">folder_managed</span>
-            <span className="text-sm">Medical Records</span>
-          </Link>
-          <Link className="flex items-center gap-4 px-6 py-4 text-[#dae2fd]/60 hover:bg-[#131b2e]/50 hover:pl-8 transition-all duration-300" href="/health">
-            <span className="material-symbols-outlined">biotech</span>
-            <span className="text-sm">Lab Results</span>
-          </Link>
-          <Link className="flex items-center gap-4 px-6 py-4 text-[#dae2fd]/60 hover:bg-[#131b2e]/50 hover:pl-8 transition-all duration-300" href="/share">
-            <span className="material-symbols-outlined">qr_code_scanner</span>
-            <span className="text-sm">Doctor Access</span>
-          </Link>
-        </nav>
-        <div className="p-6">
-          <button className="w-full py-3 bg-error-container text-error rounded-xl font-bold text-xs uppercase tracking-widest hover:brightness-110 transition-all">
-            Emergency SOS
-          </button>
-        </div>
-      </aside>
-
-      {/* Main Canvas */}
-      <main className="lg:ml-64 pt-16 flex-1 relative flex flex-col overflow-hidden">
-        {/* Background 3D Health Twin (Visual Background) */}
-        <div className="absolute inset-0 z-0 flex items-center justify-center opacity-30 mix-blend-screen pointer-events-none">
-          <div className="relative w-[800px] h-[800px]">
-            <img className="w-full h-full object-contain blur-[2px]" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBhVIz5SZh-HV2p4I2Jw57pmxZ7R_HUzHGdfz_RvZ36NTGSZkwnKGYuPdMxqbzNx3ekwvX6Kh4wm_7Dbr_UvbZ9f07u1TAYJXkzk53cLh05w49CfRywowoeD8ERGiomPAy2QcYo5fbFPxdrwkb4RiZlHAvTCWu1mxc86z9DiS3yfyyhyrXUlfOtwESjzqj2QEsu3jIuZoIuyWtAK7IgXPsWSrpNG9--SkFy39q4PEFdaXlBM3eVfs0z7Q6tpTaZWUT718ihnTwUajx5" alt="Background" />
-            {/* Interactive Highlight Points */}
-            <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-4 h-4 bg-primary rounded-full shadow-[0_0_20px_#4edea3] animate-pulse"></div>
-          </div>
+        {/* Page Header */}
+        <div style={{ marginBottom: 28 }}>
+          <h1 className="text-heading" style={{ fontSize: 26, color: 'var(--slate-900)', marginBottom: 6 }}>
+            Symptom Checker
+          </h1>
+          <p style={{ fontSize: 14, color: 'var(--slate-500)' }}>
+            Describe how you're feeling. Our AI will analyze your symptoms and prepare a clinical report.
+          </p>
         </div>
 
-        {/* Discovery Interaction Layer */}
-        <div className="relative z-10 flex-1 flex flex-col p-8 gap-8 overflow-hidden">
-          {/* Header Section */}
-          <div className="flex justify-between items-start">
-            <div className="max-w-xl">
-              <h1 className="text-4xl font-headline font-extrabold tracking-tight text-on-surface mb-2">Discovery Phase</h1>
-              <p className="text-on-surface-variant font-light leading-relaxed">Agent AI is listening. Describe your symptoms naturally. Mention duration, intensity, and location for precise mapping.</p>
-            </div>
-            <div className="flex items-center gap-4 bg-surface-container-low px-4 py-2 rounded-full border border-outline-variant/10">
-              <span className="flex h-2 w-2 rounded-full bg-primary animate-ping"></span>
-              <span className="text-xs font-label text-primary uppercase tracking-widest font-bold">Intake Agent Active</span>
-            </div>
-          </div>
+        {/* Progress Steps */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 0,
+          background: '#fff', border: '1px solid var(--slate-200)',
+          borderRadius: 16, padding: '16px 24px',
+          marginBottom: 28, boxShadow: 'var(--shadow-sm)',
+          overflowX: 'auto',
+        }}>
+          {steps.map((step, i) => (
+            <React.Fragment key={i}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                <div style={{
+                  width: 36, height: 36, borderRadius: '50%',
+                  background: step.done ? 'var(--emerald-600)' : step.active ? 'var(--blue-600)' : 'var(--slate-100)',
+                  color: (step.done || step.active) ? '#fff' : 'var(--slate-400)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  transition: 'all 0.3s ease',
+                }}>
+                  <span className="material-symbols-outlined icon-filled" style={{ fontSize: 18 }}>
+                    {step.done ? 'check' : step.icon}
+                  </span>
+                </div>
+                <span style={{ fontSize: 13, fontWeight: 600, color: step.done ? 'var(--emerald-700)' : step.active ? 'var(--blue-700)' : 'var(--slate-400)' }}>
+                  {step.label}
+                </span>
+              </div>
+              {i < steps.length - 1 && (
+                <div style={{ flex: 1, height: 2, background: step.done ? 'var(--emerald-200)' : 'var(--slate-200)', margin: '0 16px', minWidth: 24 }} />
+              )}
+            </React.Fragment>
+          ))}
+        </div>
 
-          {/* Central Neural Aura & Dual Panes */}
-          <div className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-8 items-center overflow-hidden">
-            {/* Left: Live Transcript */}
-            <div className="md:col-span-3 h-[500px] glass-panel rounded-3xl p-6 border border-outline-variant/5 flex flex-col">
-              <div className="flex items-center gap-2 mb-6">
-                <span className="material-symbols-outlined text-primary text-sm">text_fields</span>
-                <h3 className="text-xs font-label uppercase tracking-widest font-bold text-on-surface-variant">Live Transcript</h3>
-              </div>
-              <div className="flex-1 overflow-y-auto space-y-6 pr-2 custom-scrollbar">
-                <div className="opacity-40 text-sm italic">...initializing neural sync</div>
-                <div className="text-sm leading-relaxed text-on-surface/80">
-                  "I've been feeling this sharp pain in my lower back for about three days now. It gets worse when I try to stand up straight..."
-                </div>
-                <div className="text-sm leading-relaxed text-on-surface/80">
-                  "It also feels a bit warm to the touch, and I've noticed a small rash starting to form near the area."
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="w-1 h-4 bg-primary rounded-full animate-pulse"></span>
-                  <span className="text-sm text-primary font-medium italic">User is speaking...</span>
-                </div>
-              </div>
-            </div>
+        {/* Main Layout */}
+        <div className="grid-main">
 
-            {/* Center: Neural Aura Waveform */}
-            <div className="md:col-span-6 flex flex-col items-center justify-center relative">
-              <div className="neural-aura-glow absolute w-96 h-96 rounded-full -z-10 animate-pulse"></div>
-              {/* Futuristic Waveform Visualization */}
-              <div className="flex items-center justify-center gap-1 h-32 mb-12">
-                <div className="w-1.5 h-8 bg-primary rounded-full animate-[bounce_1s_infinite]"></div>
-                <div className="w-1.5 h-16 bg-primary-container rounded-full animate-[bounce_1.2s_infinite]"></div>
-                <div className="w-1.5 h-24 bg-primary rounded-full animate-[bounce_0.8s_infinite]"></div>
-                <div className="w-1.5 h-32 bg-primary-fixed-dim rounded-full animate-[bounce_1.5s_infinite]"></div>
-                <div className="w-1.5 h-20 bg-primary-container rounded-full animate-[bounce_1.1s_infinite]"></div>
-                <div className="w-1.5 h-28 bg-primary rounded-full animate-[bounce_0.9s_infinite]"></div>
-                <div className="w-1.5 h-12 bg-primary-fixed-dim rounded-full animate-[bounce_1.3s_infinite]"></div>
-                <div className="w-1.5 h-6 bg-primary-container rounded-full animate-[bounce_0.7s_infinite]"></div>
+          {/* ─── Chat Column ─── */}
+          <div style={{ display: 'flex', flexDirection: 'column', background: '#fff', border: '1px solid var(--slate-200)', borderRadius: 20, overflow: 'hidden', height: 580, boxShadow: 'var(--shadow-sm)' }}>
+
+            {/* Chat Header */}
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--slate-100)', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'linear-gradient(135deg, #2563eb, #0d9488)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <span className="material-symbols-outlined icon-filled" style={{ fontSize: 20, color: '#fff' }}>smart_toy</span>
               </div>
-              <button className="group relative flex flex-col items-center justify-center gap-4 transition-transform active:scale-95">
-                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary to-primary-container flex items-center justify-center shadow-[0_0_40px_rgba(78,222,163,0.4)] group-hover:shadow-[0_0_60px_rgba(78,222,163,0.6)] transition-all">
-                  <span className="material-symbols-outlined text-on-primary text-4xl" style={{ fontVariationSettings: "'FILL' 1" }}>mic</span>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--slate-800)' }}>Clinical AI Assistant</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--emerald-600)', fontWeight: 500 }}>
+                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--emerald-600)', display: 'inline-block' }} />
+                  Active — Listening
                 </div>
-                <span className="text-sm font-headline font-bold tracking-widest text-primary uppercase">Talk to Me</span>
-              </button>
-              <div className="mt-12 flex flex-col items-center gap-2">
-                <div className="flex gap-1.5">
-                  <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce"></div>
-                  <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '-0.15s' }}></div>
-                  <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '-0.3s' }}></div>
-                </div>
-                <span className="text-[10px] font-label uppercase tracking-[0.2em] text-on-surface-variant font-bold">Analyzing Context...</span>
               </div>
             </div>
 
-            {/* Right: Extracted Insights */}
-            <div className="md:col-span-3 h-[500px] flex flex-col gap-4">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="material-symbols-outlined text-primary text-sm">psychology</span>
-                <h3 className="text-xs font-label uppercase tracking-widest font-bold text-on-surface-variant">Extracted Insights</h3>
-              </div>
-              <div className="bg-surface-container-high/80 rounded-2xl p-4 border-l-2 border-primary shadow-lg transition-all hover:translate-x-1">
-                <div className="flex justify-between items-start mb-2">
-                  <span className="text-[10px] font-label text-primary-fixed-dim font-bold uppercase tracking-wider">Duration</span>
-                  <span className="material-symbols-outlined text-primary text-xs">push_pin</span>
-                </div>
-                <div className="text-lg font-headline font-bold text-on-surface">3 Days</div>
-                <div className="text-[10px] text-on-surface-variant mt-1 italic">Extracted from: "about three days now"</div>
-              </div>
-              <div className="bg-surface-container-high/80 rounded-2xl p-4 border-l-2 border-tertiary-container shadow-lg transition-all hover:translate-x-1">
-                <div className="flex justify-between items-start mb-2">
-                  <span className="text-[10px] font-label text-tertiary-container font-bold uppercase tracking-wider">Severity</span>
-                  <span className="material-symbols-outlined text-tertiary-container text-xs">push_pin</span>
-                </div>
-                <div className="text-lg font-headline font-bold text-on-surface">High (Sharp)</div>
-                <div className="text-[10px] text-on-surface-variant mt-1 italic">Extracted from: "sharp pain... worse when standing"</div>
-              </div>
-              <div className="bg-surface-container-high/80 rounded-2xl p-4 border-l-2 border-secondary shadow-lg transition-all hover:translate-x-1">
-                <div className="flex justify-between items-start mb-2">
-                  <span className="text-[10px] font-label text-secondary font-bold uppercase tracking-wider">Location</span>
-                  <span className="material-symbols-outlined text-secondary text-xs">push_pin</span>
-                </div>
-                <div className="text-lg font-headline font-bold text-on-surface">Lower Back</div>
-                <div className="text-[10px] text-on-surface-variant mt-1 italic">Extracted from: "pain in my lower back"</div>
-              </div>
-              <div className="flex-1 border-2 border-dashed border-outline-variant/10 rounded-2xl flex items-center justify-center group cursor-pointer hover:bg-surface-container-low transition-colors">
-                <div className="flex flex-col items-center gap-2 opacity-30 group-hover:opacity-60 transition-opacity">
-                  <span className="material-symbols-outlined text-2xl">pending</span>
-                  <span className="text-[10px] font-label uppercase tracking-widest">Listening for vitals...</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Footer Action Bar (Contextual) */}
-          <div className="flex flex-col md:flex-row items-center justify-between mt-auto bg-surface-container-lowest/40 backdrop-blur-md p-6 rounded-[2rem] border border-outline-variant/10 gap-4">
-            <div className="flex gap-4 w-full md:w-auto overflow-x-auto no-scrollbar pb-2 md:pb-0">
-              <button className="flex shrink-0 items-center gap-3 px-6 py-3 bg-surface-container-high hover:bg-surface-container-highest text-on-surface rounded-xl border border-outline-variant/10 transition-all">
-                <span className="material-symbols-outlined text-primary">add_a_photo</span>
-                <div className="text-left">
-                  <p className="text-[10px] font-label uppercase font-bold tracking-widest opacity-60">Upload Photo</p>
-                  <p className="text-xs font-headline font-semibold">Skin/External</p>
-                </div>
-              </button>
-              <button className="flex shrink-0 items-center gap-3 px-6 py-3 bg-surface-container-high hover:bg-surface-container-highest text-on-surface rounded-xl border border-outline-variant/10 transition-all">
-                <span className="material-symbols-outlined text-primary">upload_file</span>
-                <div className="text-left">
-                  <p className="text-[10px] font-label uppercase font-bold tracking-widest opacity-60">Upload Labs</p>
-                  <p className="text-xs font-headline font-semibold">Reports (PDF)</p>
-                </div>
-              </button>
-            </div>
-            <div className="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end">
-              <div className="text-right">
-                <p className="text-[10px] font-label uppercase tracking-tighter text-on-surface-variant font-bold">Confidence Score</p>
-                <div className="flex items-center gap-2">
-                  <div className="w-32 h-1 bg-surface-container-highest rounded-full overflow-hidden">
-                    <div className="w-[88%] h-full bg-primary shadow-[0_0_10px_#4edea3]"></div>
+            {/* Messages */}
+            <div ref={chatRef} style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: 16, background: 'var(--slate-50)' }}>
+              {messages.map((msg, i) => (
+                <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: msg.sender === 'user' ? 'flex-end' : 'flex-start' }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--slate-400)', marginBottom: 4, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                    {msg.sender === 'user' ? 'You' : 'AI Assistant'} · {msg.time}
                   </div>
-                  <span className="text-xs font-headline font-bold text-primary">88%</span>
+                  <div className={msg.sender === 'user' ? 'bubble-user' : 'bubble-agent'} style={{ whiteSpace: 'pre-wrap' }}>
+                    {msg.text}
+                  </div>
                 </div>
-              </div>
-              <button className="px-8 py-3 bg-gradient-to-br from-primary to-primary-container text-on-primary font-headline font-black rounded-xl shadow-lg hover:scale-[1.02] active:scale-95 transition-all whitespace-nowrap">
-                Proceed
+              ))}
+              {loading && (
+                <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+                  <div className="bubble-agent" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '12px 18px' }}>
+                    {[0, 0.2, 0.4].map((d, i) => (
+                      <span key={i} style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--blue-400)', display: 'inline-block', animation: `bounce-dot 1.2s ${d}s ease-in-out infinite` }} />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Suggestions */}
+            <div style={{ padding: '10px 16px', borderTop: '1px solid var(--slate-100)', display: 'flex', gap: 8, overflowX: 'auto', background: '#fff' }}>
+              {suggestions.map((s, i) => (
+                <button key={i} onClick={() => send(s)} style={{
+                  padding: '7px 14px',
+                  borderRadius: 99,
+                  background: 'var(--slate-100)',
+                  color: 'var(--slate-600)',
+                  fontSize: 12, fontWeight: 500,
+                  whiteSpace: 'nowrap',
+                  border: 'none', cursor: 'pointer',
+                  transition: 'background 0.15s',
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--slate-200)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'var(--slate-100)'}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+
+            {/* Input Bar */}
+            <div style={{ padding: '12px 16px', borderTop: '1px solid var(--slate-100)', display: 'flex', gap: 10, alignItems: 'center', background: '#fff' }}>
+              <input
+                className="input-field"
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && !e.shiftKey && send()}
+                placeholder="Describe your symptoms..."
+                style={{ flex: 1, margin: 0, borderRadius: 99 }}
+              />
+              <button
+                onClick={() => send()}
+                disabled={!input.trim() || loading}
+                style={{
+                  width: 42, height: 42,
+                  borderRadius: '50%',
+                  background: input.trim() && !loading ? 'var(--blue-600)' : 'var(--slate-200)',
+                  color: input.trim() && !loading ? '#fff' : 'var(--slate-400)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  border: 'none', cursor: input.trim() && !loading ? 'pointer' : 'default',
+                  flexShrink: 0,
+                  transition: 'all 0.18s ease',
+                }}
+              >
+                <span className="material-symbols-outlined icon-filled" style={{ fontSize: 20, marginLeft: 2 }}>send</span>
               </button>
             </div>
           </div>
-        </div>
-      </main>
 
-      {/* BottomNavBar (Visible on Mobile) */}
-      <nav className="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-6 pt-2 bg-[#131b2e]/90 backdrop-blur-2xl border-t border-[#3c4a42]/10 shadow-[0px_-10px_30px_rgba(0,0,0,0.3)] rounded-t-3xl">
-        <Link className="flex flex-col items-center justify-center text-[#dae2fd]/50 px-4 py-2 tap-highlight-none active:scale-95 transition-transform duration-200" href="/health">
-          <span className="material-symbols-outlined">monitoring</span>
-          <span className="font-['Inter'] text-[10px] uppercase tracking-[0.05em] font-semibold mt-1">Health</span>
-        </Link>
-        <Link className="flex flex-col items-center justify-center text-[#dae2fd]/50 px-4 py-2 tap-highlight-none active:scale-95 transition-transform duration-200" href="/history">
-          <span className="material-symbols-outlined">history_edu</span>
-          <span className="font-['Inter'] text-[10px] uppercase tracking-[0.05em] font-semibold mt-1">History</span>
-        </Link>
-        <Link className="flex flex-col items-center justify-center bg-gradient-to-br from-[#4edea3]/20 to-[#10b981]/10 text-[#4edea3] rounded-xl px-4 py-2 tap-highlight-none active:scale-95 transition-transform duration-200" href="/intake">
-          <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>forum</span>
-          <span className="font-['Inter'] text-[10px] uppercase tracking-[0.05em] font-semibold mt-1">Consult</span>
-        </Link>
-        <Link className="flex flex-col items-center justify-center text-[#dae2fd]/50 px-4 py-2 tap-highlight-none active:scale-95 transition-transform duration-200" href="/share">
-          <span className="material-symbols-outlined">settings_heart</span>
-          <span className="font-['Inter'] text-[10px] uppercase tracking-[0.05em] font-semibold mt-1">Settings</span>
-        </Link>
-      </nav>
+          {/* ─── Right: Symptom Summary ─── */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+            {/* Extracted Info */}
+            <div style={{ background: '#fff', border: '1px solid var(--slate-200)', borderRadius: 20, overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
+              <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--slate-100)', display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 34, height: 34, borderRadius: 10, background: 'var(--teal-50)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <span className="material-symbols-outlined icon-filled" style={{ fontSize: 18, color: 'var(--teal-600)' }}>fact_check</span>
+                </div>
+                <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--slate-800)' }}>Symptom Summary</div>
+              </div>
+              <div style={{ padding: '16px 20px' }}>
+                <p style={{ fontSize: 12, color: 'var(--slate-400)', lineHeight: 1.6, marginBottom: 16 }}>
+                  As you chat, the AI automatically organizes your symptoms for your doctor.
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {[
+                    { label: 'Main Symptoms', value: extracted.symptoms, icon: 'sick' },
+                    { label: 'Body Location', value: extracted.location, icon: 'location_on' },
+                    { label: 'Duration', value: extracted.duration, icon: 'schedule' },
+                    { label: 'Severity', value: extracted.severity, icon: 'bar_chart' },
+                  ].map((r, i) => (
+                    <div key={i} style={{
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      padding: '11px 14px',
+                      background: 'var(--slate-50)',
+                      borderRadius: 10,
+                      border: '1px solid var(--slate-100)',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: 15, color: 'var(--slate-400)' }}>{r.icon}</span>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--slate-500)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{r.label}</span>
+                      </div>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: r.value === '—' ? 'var(--slate-300)' : 'var(--slate-800)' }}>{r.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Privacy Notice */}
+            <div style={{ background: 'var(--blue-50)', border: '1px solid var(--blue-100)', borderRadius: 16, padding: '16px 20px', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+              <span className="material-symbols-outlined icon-filled" style={{ fontSize: 20, color: 'var(--blue-600)', flexShrink: 0, marginTop: 1 }}>shield</span>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--blue-800)', marginBottom: 4 }}>Your data is private</div>
+                <div style={{ fontSize: 12, color: 'var(--blue-700)', lineHeight: 1.6, opacity: 0.85 }}>
+                  This session is encrypted and HIPAA compliant. Only you and your authorized providers can view this report.
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes bounce-dot {
+          0%, 80%, 100% { transform: translateY(0); }
+          40% { transform: translateY(-6px); }
+        }
+      `}</style>
     </div>
   );
 }

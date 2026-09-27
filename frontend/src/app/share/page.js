@@ -1,252 +1,260 @@
-import React from 'react';
+'use client';
+
+import React, { useState } from 'react';
 import Link from 'next/link';
 
-export default function DoctorAccess() {
+export default function SharePage() {
+  const [tokenGenerated, setTokenGenerated] = useState(false);
+  const [generating, setGenerating] = useState(false);
+
+  const generateToken = () => {
+    setGenerating(true);
+    setTimeout(() => {
+      setGenerating(false);
+      setTokenGenerated(true);
+    }, 1200);
+  };
+
+  const token = 'CC-882-XR2T-9KLP';
+  const shareUrl = `https://carecortex.health/access/${token}`;
+
+  const doctors = [
+    { name: 'Dr. Sarah Chen', specialty: 'Neuro-Otology', initials: 'SC', color: '#2563eb', lastAccess: 'Oct 14, 2023', status: 'active' },
+    { name: 'Dr. Raj Patel', specialty: 'General Medicine', initials: 'RP', color: '#059669', lastAccess: 'Jun 22, 2023', status: 'expired' },
+  ];
+
   return (
-    <div className="bg-[#0b1326] text-on-surface font-body selection:bg-primary/30 min-h-screen">
-      {/* Top Navigation Bar */}
-      <header className="fixed top-0 w-full z-50 bg-[#0b1326]/80 backdrop-blur-xl border-b border-[#3c4a42]/15 shadow-[0px_20px_40px_rgba(6,14,32,0.4)]">
-        <div className="flex justify-between items-center px-6 h-16 w-full">
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[#4edea3]">shield</span>
-            <span className="text-[#4edea3] font-black tracking-tighter text-xl font-['Manrope']">Emerald Sentinel</span>
-          </div>
-          <div className="hidden md:flex items-center space-x-8">
-            <Link className="text-[#dae2fd]/70 hover:text-[#4edea3] transition-colors duration-300 font-['Inter'] text-sm font-medium" href="/health">Health</Link>
-            <Link className="text-[#dae2fd]/70 hover:text-[#4edea3] transition-colors duration-300 font-['Inter'] text-sm font-medium" href="/history">History</Link>
-            <Link className="text-[#dae2fd]/70 hover:text-[#4edea3] transition-colors duration-300 font-['Inter'] text-sm font-medium" href="/intake">Consult</Link>
-            <Link className="text-[#4edea3] font-bold font-['Inter'] text-sm" href="/share">Doctor Access</Link>
-          </div>
-          <div className="flex items-center gap-4">
-            <span className="material-symbols-outlined text-[#dae2fd]/70 cursor-pointer scale-95 active:scale-90 transition-transform">qr_code_2</span>
-            <span className="material-symbols-outlined text-[#dae2fd]/70 cursor-pointer scale-95 active:scale-90 transition-transform">account_circle</span>
-          </div>
-        </div>
-      </header>
+    <div className="page-root">
+      <div className="page-container">
 
-      {/* Sidebar (Large Screens Only) */}
-      <aside className="fixed left-0 top-0 z-40 h-full w-64 hidden lg:flex flex-col bg-[#0b1326] border-r border-[#3c4a42]/15 pt-24">
-        <div className="p-8 pt-0">
-          <h2 className="font-['Manrope'] font-bold text-[#4edea3] text-lg">Patient Portal</h2>
-          <p className="text-[#dae2fd]/40 text-xs font-['Inter'] mb-8">ID: #882-ES</p>
-          <nav className="space-y-1">
-            <Link className="flex items-center gap-3 px-4 py-3 text-[#dae2fd]/60 hover:bg-[#131b2e]/50 hover:pl-2 transition-all duration-300 rounded-xl" href="/">
-              <span className="material-symbols-outlined">dashboard</span>
-              <span className="font-['Inter'] text-sm">Overview</span>
-            </Link>
-            <Link className="flex items-center gap-3 px-4 py-3 text-[#dae2fd]/60 hover:bg-[#131b2e]/50 hover:pl-2 transition-all duration-300 rounded-xl" href="/intake">
-              <span className="material-symbols-outlined">mic_external_on</span>
-              <span className="font-['Inter'] text-sm">Symptom Checker</span>
-            </Link>
-            <Link className="flex items-center gap-3 px-4 py-3 text-[#dae2fd]/60 hover:bg-[#131b2e]/50 hover:pl-2 transition-all duration-300 rounded-xl" href="/history">
-              <span className="material-symbols-outlined">folder_managed</span>
-              <span className="font-['Inter'] text-sm">Medical Records</span>
-            </Link>
-            <Link className="flex items-center gap-3 px-4 py-3 text-[#dae2fd]/60 hover:bg-[#131b2e]/50 hover:pl-2 transition-all duration-300 rounded-xl" href="/health">
-              <span className="material-symbols-outlined">biotech</span>
-              <span className="font-['Inter'] text-sm">Lab Results</span>
-            </Link>
-            <Link className="flex items-center gap-3 px-4 py-3 bg-[#131b2e] text-[#4edea3] border-l-4 border-[#4edea3] rounded-r-xl" href="/share">
-              <span className="material-symbols-outlined">qr_code_scanner</span>
-              <span className="font-['Inter'] text-sm font-semibold">Doctor Access</span>
-            </Link>
-          </nav>
+        {/* Header */}
+        <div style={{ marginBottom: 32 }}>
+          <h1 className="text-heading" style={{ fontSize: 26, color: 'var(--slate-900)', marginBottom: 6 }}>Care Team & Doctor Handoff</h1>
+          <p style={{ fontSize: 14, color: 'var(--slate-500)' }}>
+            Securely share your clinical summary and AI triage reports with your healthcare providers.
+          </p>
         </div>
-        <div className="mt-auto p-6">
-          <button className="w-full bg-error-container text-error py-3 rounded-xl font-bold flex items-center justify-center gap-2 scale-95 active:scale-90 transition-transform">
-            <span className="material-symbols-outlined">emergency_home</span>
-            Emergency SOS
-          </button>
-        </div>
-      </aside>
 
-      {/* Main Content Canvas */}
-      <main className="lg:ml-64 pt-24 pb-32 px-6">
-        <div className="max-w-5xl mx-auto">
-          {/* Hero Header */}
-          <div className="mb-12">
-            <h1 className="font-['Manrope'] text-4xl font-extrabold text-[#dae2fd] tracking-tight mb-2">Doctor Handoff</h1>
-            <p className="text-[#dae2fd]/60 font-['Inter'] max-w-2xl">Securely share your real-time health data with a medical professional. This session is encrypted and will expire automatically.</p>
-          </div>
+        {/* Main Layout */}
+        <div className="grid-main">
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            {/* Left: QR Access Card (Bento Focus) */}
-            <div className="lg:col-span-5 space-y-6">
-              <div className="glass-card rounded-[2rem] p-8 relative overflow-hidden flex flex-col items-center justify-center border border-white/5 shadow-2xl">
-                <div className="absolute inset-0 opacity-10 qr-gradient blur-3xl -z-10"></div>
-                <div className="mb-8 text-center">
-                  <span className="inline-block px-3 py-1 rounded-full bg-[#4edea3]/10 text-[#4edea3] text-[10px] font-bold tracking-widest uppercase mb-4">Live Access Token</span>
-                  <div className="relative group cursor-pointer">
-                    <div className="absolute -inset-1 bg-gradient-to-r from-[#4edea3] to-[#10b981] rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
-                    <div className="relative p-4 bg-[#0b1326] rounded-2xl border border-[#3c4a42]/20">
-                      <div className="w-48 h-48 flex items-center justify-center text-[#4edea3]">
-                        <span className="material-symbols-outlined !text-9xl" style={{ fontVariationSettings: "'FILL' 1" }}>qr_code_2</span>
-                      </div>
-                    </div>
+          {/* Left: Share Token Generator */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+
+            {/* Generate Token Card */}
+            <div style={{ background: '#fff', border: '1px solid var(--slate-200)', borderRadius: 24, overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
+              <div style={{ padding: '24px 28px', borderBottom: '1px solid var(--slate-100)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--blue-50)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <span className="material-symbols-outlined icon-filled" style={{ fontSize: 22, color: 'var(--blue-600)' }}>key</span>
                   </div>
+                  <div style={{ fontWeight: 700, fontSize: 17, color: 'var(--slate-900)' }}>Generate Access Token</div>
                 </div>
-                <div className="flex flex-col items-center gap-4 w-full">
-                  <div className="flex items-center gap-3 text-sm text-[#dae2fd]/80">
-                    <span className="material-symbols-outlined text-[#4edea3] animate-pulse">sync</span>
-                    Refreshing in <span className="font-mono text-[#4edea3] font-bold">42s</span>
-                  </div>
-                  <button className="w-full qr-gradient py-4 rounded-xl font-bold text-on-primary-container flex items-center justify-center gap-3 hover:brightness-110 active:scale-[0.98] transition-all">
-                    <span className="material-symbols-outlined">share</span> Generate Link Access
-                  </button>
-                </div>
+                <p style={{ fontSize: 13, color: 'var(--slate-500)', marginLeft: 52 }}>
+                  Create a secure, one-time link for your doctor. Tokens expire automatically after 24 hours.
+                </p>
               </div>
 
-              {/* Privacy Log Card */}
-              <div className="bg-surface-container-low rounded-[1.5rem] p-6 border border-white/5">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="font-['Manrope'] font-bold text-sm tracking-wide flex items-center gap-2">
-                    <span className="material-symbols-outlined text-sm">history</span> ACCESS LOG
-                  </h3>
-                  <span className="text-[10px] text-[#dae2fd]/40 font-bold uppercase tracking-widest">Last 48 Hours</span>
-                </div>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-3 rounded-xl bg-surface-container-lowest/50 border-l-2 border-[#4edea3]">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center">
-                        <span className="material-symbols-outlined text-xs">person</span>
+              <div style={{ padding: '24px 28px' }}>
+                {!tokenGenerated ? (
+                  <div>
+                    {/* What gets shared */}
+                    <div style={{ marginBottom: 24 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--slate-400)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>
+                        What will be shared:
                       </div>
-                      <div>
-                        <p className="text-xs font-bold">Dr. Elena Vance</p>
-                        <p className="text-[10px] text-[#dae2fd]/40 italic">Full Medical Handoff</p>
-                      </div>
-                    </div>
-                    <span className="text-[10px] text-[#dae2fd]/60 font-mono">14:02 Today</span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 rounded-xl bg-surface-container-lowest/50">
-                    <div className="flex items-center gap-3 opacity-60">
-                      <div className="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center">
-                        <span className="material-symbols-outlined text-xs">local_hospital</span>
-                      </div>
-                      <div>
-                        <p className="text-xs font-bold">Mercy General API</p>
-                        <p className="text-[10px] text-[#dae2fd]/40 italic">Lab Results Sync</p>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        {[
+                          { icon: 'clinical_notes', label: 'AI Clinical Summary (SBAR)', color: '#2563eb', bg: '#eff6ff' },
+                          { icon: 'monitor_heart', label: 'Vitals & Health Metrics', color: '#059669', bg: '#ecfdf5' },
+                          { icon: 'history', label: 'Medical History Timeline', color: '#4f46e5', bg: '#eef2ff' },
+                          { icon: 'medication', label: 'Active Medications', color: '#d97706', bg: '#fffbeb' },
+                        ].map((item, i) => (
+                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'var(--slate-50)', borderRadius: 10, border: '1px solid var(--slate-100)' }}>
+                            <div style={{ width: 30, height: 30, borderRadius: 8, background: item.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                              <span className="material-symbols-outlined icon-filled" style={{ fontSize: 16, color: item.color }}>{item.icon}</span>
+                            </div>
+                            <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--slate-700)' }}>{item.label}</span>
+                            <span className="material-symbols-outlined icon-filled" style={{ fontSize: 16, color: 'var(--emerald-600)', marginLeft: 'auto' }}>check_circle</span>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                    <span className="text-[10px] text-[#dae2fd]/60 font-mono">Yesterday</span>
+
+                    <button
+                      onClick={generateToken}
+                      disabled={generating}
+                      className="btn btn-primary"
+                      style={{ width: '100%', justifyContent: 'center', fontSize: 14, padding: '13px 20px', borderRadius: 12 }}
+                    >
+                      {generating ? (
+                        <>
+                          <span style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
+                          Generating Secure Token…
+                        </>
+                      ) : (
+                        <>
+                          <span className="material-symbols-outlined" style={{ fontSize: 18 }}>qr_code</span>
+                          Generate Secure Token
+                        </>
+                      )}
+                    </button>
                   </div>
-                </div>
+                ) : (
+                  <div>
+                    <div style={{ textAlign: 'center', marginBottom: 24 }}>
+                      {/* Simulated QR Code */}
+                      <div style={{
+                        width: 160, height: 160, margin: '0 auto 16px',
+                        background: '#fff',
+                        border: '2px solid var(--slate-200)',
+                        borderRadius: 16,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        boxShadow: 'var(--shadow-md)',
+                      }}>
+                        <span className="material-symbols-outlined icon-filled" style={{ fontSize: 100, color: 'var(--slate-800)' }}>qr_code</span>
+                      </div>
+                      <div style={{ fontSize: 12, color: 'var(--slate-400)', marginBottom: 12 }}>Scan to share or use the link below</div>
+                    </div>
+
+                    {/* Token display */}
+                    <div style={{ background: 'var(--slate-50)', border: '1px solid var(--slate-200)', borderRadius: 12, padding: '14px 18px', marginBottom: 12 }}>
+                      <div style={{ fontSize: 11, color: 'var(--slate-400)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Access Token</div>
+                      <div style={{ fontFamily: 'monospace', fontSize: 20, fontWeight: 700, color: 'var(--blue-700)', letterSpacing: '0.15em' }}>{token}</div>
+                    </div>
+
+                    {/* URL display */}
+                    <div style={{ background: 'var(--slate-50)', border: '1px solid var(--slate-200)', borderRadius: 12, padding: '12px 18px', marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 12, color: 'var(--slate-600)', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {shareUrl}
+                      </span>
+                      <button style={{ flexShrink: 0, color: 'var(--blue-600)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 700 }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>content_copy</span>
+                        Copy
+                      </button>
+                    </div>
+
+                    {/* Expiry notice */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: 'var(--amber-50)', border: '1px solid var(--amber-100)', borderRadius: 10, marginBottom: 16 }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: 16, color: 'var(--amber-600)' }}>timer</span>
+                      <span style={{ fontSize: 12, color: 'var(--amber-700)', fontWeight: 600 }}>This token expires in 23 hours 59 minutes</span>
+                    </div>
+
+                    <button onClick={() => setTokenGenerated(false)} className="btn btn-secondary" style={{ width: '100%', justifyContent: 'center', fontSize: 13 }}>
+                      Generate New Token
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Right: Patient History Preview (Editorial Style) */}
-            <div className="lg:col-span-7 space-y-8">
-              <div className="p-2">
-                <div className="flex items-center gap-4 mb-8">
-                  <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-[#3c4a42]/30 to-transparent"></div>
-                  <span className="text-[10px] uppercase font-bold tracking-[0.2em] text-[#4edea3]/60">Summary Preview for Provider</span>
-                  <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-[#3c4a42]/30 to-transparent"></div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Vitals Velocity */}
-                  <div className="bg-surface-container-low p-6 rounded-3xl border border-white/5 md:col-span-2">
-                    <div className="flex justify-between items-start mb-6">
-                      <div>
-                        <p className="text-[10px] font-black tracking-widest text-[#dae2fd]/40 uppercase mb-1">BMI / Vitals Velocity</p>
-                        <h4 className="font-['Manrope'] text-2xl font-bold">Stable Trend</h4>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-[10px] text-[#4edea3] font-bold">+2.4% Optimal Range</p>
-                        <span className="material-symbols-outlined text-[#4edea3]">trending_up</span>
-                      </div>
-                    </div>
-                    <div className="h-24 w-full flex items-end gap-1 px-2">
-                      <div className="flex-1 bg-primary/20 rounded-t-sm" style={{ height: '40%' }}></div>
-                      <div className="flex-1 bg-primary/30 rounded-t-sm" style={{ height: '55%' }}></div>
-                      <div className="flex-1 bg-primary/25 rounded-t-sm" style={{ height: '50%' }}></div>
-                      <div className="flex-1 bg-primary/40 rounded-t-sm" style={{ height: '65%' }}></div>
-                      <div className="flex-1 bg-primary/35 rounded-t-sm" style={{ height: '60%' }}></div>
-                      <div className="flex-1 qr-gradient rounded-t-sm" style={{ height: '85%' }}></div>
-                    </div>
-                    <div className="flex justify-between mt-4 text-[10px] font-mono text-[#dae2fd]/30 px-2">
-                      <span>30D AGO</span>
-                      <span>TODAY</span>
-                    </div>
-                  </div>
-
-                  {/* Chronic Conditions */}
-                  <div className="bg-surface-container-low p-6 rounded-3xl border border-white/5">
-                    <h3 className="font-['Manrope'] font-bold text-sm tracking-wide flex items-center gap-2 mb-6">
-                      <span className="material-symbols-outlined text-sm text-[#4edea3]">pill</span> CHRONIC CONDITIONS
-                    </h3>
-                    <ul className="space-y-3">
-                      <li className="flex items-center gap-3">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#4edea3]"></span>
-                        <span className="text-xs font-semibold text-[#dae2fd]/90">Type 2 Diabetes</span>
-                      </div>
-                      <li className="flex items-center gap-3">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#4edea3]"></span>
-                        <span className="text-xs font-semibold text-[#dae2fd]/90">Hypertension</span>
-                      </li>
-                      <li className="flex items-center gap-3 opacity-40">
-                        <span className="w-1.5 h-1.5 rounded-full bg-white/20"></span>
-                        <span className="text-xs font-semibold">Mild Asthma (History)</span>
-                      </li>
-                    </ul>
-                  </div>
-
-                  {/* Recent Symptom Logs */}
-                  <div className="bg-surface-container-low p-6 rounded-3xl border border-white/5">
-                    <h3 className="font-['Manrope'] font-bold text-sm tracking-wide flex items-center gap-2 mb-6">
-                      <span className="material-symbols-outlined text-sm text-tertiary">warning</span> SYMPTOM LOGS
-                    </h3>
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold">Joint Pain</span>
-                        <span className="px-2 py-0.5 rounded text-[8px] bg-tertiary-container/20 text-tertiary border border-tertiary/20">MODERATE</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold">Insomnia</span>
-                        <span className="px-2 py-0.5 rounded text-[8px] bg-primary/10 text-[#4edea3] border border-[#4edea3]/20">MILD</span>
-                      </div>
-                      <p className="text-[10px] text-[#dae2fd]/40 mt-4 leading-relaxed italic">
-                        "Noticed increased discomfort after morning walks this week..."
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Editorial Image Visual */}
-                  <div className="md:col-span-2 relative h-48 rounded-3xl overflow-hidden group">
-                    <img alt="Clinical Environment" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCAvQPp_aOymR5F3V-5nmFnzJcBvUS5G0EGZYrzvzz8SS7x43_L1Akow2ND6k4-8B63C6PZ2861sg-d0_L0s8GcmMehVpcn3M7CWf1KR0ghzVu_pRYDbpsiTe2DEC386iuvA6IRVqubeMwsomJQEf1iKfnMo3F1-2pphmsywasipVfxxQeX2bsj0VjM9sszLMIjuOA3L8UNeggWfhLXxFJZ3boGPRo4D8yWZa0qRfvha6NJLkVZLOSDz6iF518plptTrYKfVWvQafSG" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#0b1326] via-transparent to-transparent"></div>
-                    <div className="absolute bottom-6 left-6 right-6 flex justify-between items-end">
-                      <div>
-                        <p className="text-[10px] font-black text-[#4edea3] tracking-[0.2em] uppercase">Verified Identity</p>
-                        <h4 className="text-xl font-['Manrope'] font-bold">Secure Sentinel Core</h4>
-                      </div>
-                      <span className="material-symbols-outlined !text-3xl opacity-40" style={{ fontVariationSettings: "'FILL' 1" }}>verified_user</span>
-                    </div>
-                  </div>
-                </div>
+            {/* Security Notice */}
+            <div style={{ background: 'linear-gradient(135deg, var(--blue-50), var(--teal-50))', border: '1px solid var(--blue-100)', borderRadius: 18, padding: '20px 24px', display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+              <div style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--blue-600)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <span className="material-symbols-outlined icon-filled" style={{ fontSize: 20, color: '#fff' }}>shield</span>
+              </div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--slate-800)', marginBottom: 6 }}>HIPAA Compliant & End-to-End Encrypted</div>
+                <p style={{ fontSize: 13, color: 'var(--slate-600)', lineHeight: 1.65 }}>
+                  All data transfers are encrypted in transit. Providers can only view data with the token you explicitly generate. Tokens auto-expire and can be revoked at any time.
+                </p>
               </div>
             </div>
           </div>
-        </div>
-      </main>
 
-      {/* Bottom Navigation Bar (Mobile only) */}
-      <nav className="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-6 pt-2 bg-[#131b2e]/90 backdrop-blur-2xl border-t border-[#3c4a42]/10 shadow-[0px_-10px_30px_rgba(0,0,0,0.3)] rounded-t-3xl">
-        <Link className="flex flex-col items-center justify-center text-[#dae2fd]/50 px-4 py-2 tap-highlight-none active:scale-95 transition-transform duration-200 hover:text-[#4edea3]" href="/health">
-          <span className="material-symbols-outlined">monitoring</span>
-          <span className="font-['Inter'] text-[10px] uppercase tracking-[0.05em] font-semibold mt-1">Health</span>
-        </Link>
-        <Link className="flex flex-col items-center justify-center text-[#dae2fd]/50 px-4 py-2 tap-highlight-none active:scale-95 transition-transform duration-200 hover:text-[#4edea3]" href="/history">
-          <span className="material-symbols-outlined">history_edu</span>
-          <span className="font-['Inter'] text-[10px] uppercase tracking-[0.05em] font-semibold mt-1">History</span>
-        </Link>
-        <Link className="flex flex-col items-center justify-center text-[#dae2fd]/50 px-4 py-2 tap-highlight-none active:scale-95 transition-transform duration-200 hover:text-[#4edea3]" href="/intake">
-          <span className="material-symbols-outlined">forum</span>
-          <span className="font-['Inter'] text-[10px] uppercase tracking-[0.05em] font-semibold mt-1">Consult</span>
-        </Link>
-        <Link className="flex flex-col items-center justify-center bg-gradient-to-br from-[#4edea3]/20 to-[#10b981]/10 text-[#4edea3] rounded-xl px-4 py-2 tap-highlight-none active:scale-95 transition-transform duration-200" href="/share">
-          <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>qr_code_scanner</span>
-          <span className="font-['Inter'] text-[10px] uppercase tracking-[0.05em] font-semibold mt-1">Share</span>
-        </Link>
-      </nav>
+          {/* Right: Care Team + Recent Access */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+            {/* Care Team */}
+            <div>
+              <div className="section-label">My Care Team</div>
+              <div style={{ background: '#fff', border: '1px solid var(--slate-200)', borderRadius: 20, overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
+                {doctors.map((doc, i) => (
+                  <div key={i} style={{
+                    padding: '18px 20px',
+                    borderBottom: i < doctors.length - 1 ? '1px solid var(--slate-100)' : 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 14,
+                    transition: 'background 0.15s',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--slate-50)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <div style={{
+                      width: 46, height: 46, borderRadius: '50%',
+                      background: doc.color,
+                      color: '#fff',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontWeight: 700, fontSize: 14,
+                      flexShrink: 0,
+                      fontFamily: "'Plus Jakarta Sans', sans-serif",
+                    }}>
+                      {doc.initials}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--slate-800)' }}>{doc.name}</div>
+                      <div style={{ fontSize: 12, color: 'var(--slate-400)', marginTop: 2 }}>{doc.specialty}</div>
+                    </div>
+                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                      <div style={{
+                        fontSize: 11, fontWeight: 700, marginBottom: 4, padding: '3px 9px', borderRadius: 99,
+                        background: doc.status === 'active' ? 'var(--emerald-50)' : 'var(--slate-100)',
+                        color: doc.status === 'active' ? 'var(--emerald-700)' : 'var(--slate-400)',
+                      }}>
+                        {doc.status === 'active' ? '● Active Access' : 'Expired'}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--slate-400)' }}>{doc.lastAccess}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Share Options */}
+            <div>
+              <div className="section-label">Share Options</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {[
+                  { icon: 'qr_code', label: 'Share via QR Code', desc: 'Show QR code to your doctor in person', color: 'var(--blue-600)', bg: 'var(--blue-50)', href: '#' },
+                  { icon: 'link', label: 'Copy Shareable Link', desc: 'Send the access link via email or messaging', color: 'var(--teal-600)', bg: 'var(--teal-50)', href: '#' },
+                  { icon: 'print', label: 'Print Summary Report', desc: 'Download and print the clinical report', color: 'var(--purple-600)', bg: 'var(--purple-50)', href: '/health' },
+                ].map((opt, i) => (
+                  <Link key={i} href={opt.href} style={{
+                    display: 'flex', alignItems: 'center', gap: 14,
+                    padding: '16px 18px',
+                    background: '#fff',
+                    border: '1px solid var(--slate-200)',
+                    borderRadius: 14,
+                    textDecoration: 'none',
+                    boxShadow: 'var(--shadow-sm)',
+                    transition: 'all 0.18s ease',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.boxShadow = 'var(--shadow-md)'; e.currentTarget.style.transform = 'translateX(4px)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.boxShadow = 'var(--shadow-sm)'; e.currentTarget.style.transform = 'none'; }}
+                  >
+                    <div style={{ width: 40, height: 40, borderRadius: 10, background: opt.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <span className="material-symbols-outlined icon-filled" style={{ fontSize: 20, color: opt.color }}>{opt.icon}</span>
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--slate-800)' }}>{opt.label}</div>
+                      <div style={{ fontSize: 12, color: 'var(--slate-400)', marginTop: 2 }}>{opt.desc}</div>
+                    </div>
+                    <span className="material-symbols-outlined" style={{ fontSize: 18, color: 'var(--slate-300)', marginLeft: 'auto' }}>arrow_forward_ios</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }
