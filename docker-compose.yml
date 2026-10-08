@@ -75,6 +75,8 @@ services:
       DB_NAME: ${POSTGRES_DB}
     networks:
       - neuralmedic_network
+    ports:
+      - "8005:8000"
 
   interview_agent:
     build:

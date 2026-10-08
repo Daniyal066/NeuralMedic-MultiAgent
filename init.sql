@@ -9,9 +9,10 @@ CREATE TABLE IF NOT EXISTS healthcare (
     symptoms_text TEXT,
     medical_history TEXT,
     doctor_notes TEXT,
+    transcript TEXT,
     created_at TIMESTAMP DEFAULT NOW(),
-    
-    -- Embedding columns (1536 dimensions for OpenAI embeddings)
+
+    -- Embedding columns (1536 dimensions or 384 dimensions)
     symptoms_embedding VECTOR(384),
     history_embedding VECTOR(384),
     notes_embedding VECTOR(384)
@@ -85,3 +86,40 @@ VALUES ('sess_001', 'HealthcareSessionCreated', '{"patient_id": "pat_001", "sess
 
 -- Optimize index
 VACUUM ANALYZE healthcare;
+
+CREATE TABLE IF NOT EXISTS agents (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(100) NOT NULL,
+    role VARCHAR(50) NOT NULL,
+    status VARCHAR(50) DEFAULT 'ACTIVE',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+-- Agent Tasks table
+CREATE TABLE IF NOT EXISTS agent_tasks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id UUID NOT NULL REFERENCES sessions(id),
+    agent_id UUID NOT NULL REFERENCES agents(id),
+    task_type VARCHAR(100) NOT NULL,
+    status VARCHAR(50) DEFAULT 'PENDING',
+    input_payload JSONB,
+    output_payload JSONB,
+    started_at TIMESTAMP WITH TIME ZONE,
+    completed_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Agent Execution Logs table
+CREATE TABLE IF NOT EXISTS agent_execution_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    task_id UUID NOT NULL REFERENCES agent_tasks(id),    
+    log_level VARCHAR(20) DEFAULT 'INFO',
+    message TEXT,
+    metadata JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Indexes for efficient querying
+CREATE INDEX IF NOT EXISTS idx_outbox_processed ON outbox_events (processed);
+CREATE INDEX IF NOT EXISTS idx_job_status_session ON job_status (session_id);
+CREATE INDEX IF NOT EXISTS idx_agent_tasks_session ON agent_tasks (session_id);
+CREATE INDEX IF NOT EXISTS idx_agent_execution_logs_task ON agent_execution_logs (task_id);

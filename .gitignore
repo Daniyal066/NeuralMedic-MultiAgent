@@ -4,3 +4,9 @@ __pycache__/
 .venv/
 .DS_Store
 postgres_data/
+__pycache__/
+*.py[cod]
+node_modules/
+.next/
+.env
+.env.local
