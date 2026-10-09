@@ -1,38 +1,29 @@
 import { NextResponse } from 'next/server';
 
 export async function GET() {
-  const tasks = [
-    {
-      id: 'TASK-9021',
-      patientId: 'PT-8942',
-      agent: 'Interview & Triage Agent',
-      status: 'PROCESSING',
-      priority: 'HIGH',
-      createdAt: new Date(Date.now() - 60000).toISOString(),
-    },
-    {
-      id: 'TASK-9020',
-      patientId: 'PT-3105',
-      agent: 'Embedding Vector Search',
-      status: 'COMPLETED',
-      priority: 'NORMAL',
-      createdAt: new Date(Date.now() - 300000).toISOString(),
-    },
-    {
-      id: 'TASK-9019',
-      patientId: 'PT-6621',
-      agent: 'Context Extraction Agent',
-      status: 'QUEUED',
-      priority: 'URGENT',
-      createdAt: new Date(Date.now() - 15000).toISOString(),
-    },
-  ];
+  const FASTAPI_URL = process.env.FASTAPI_ORCHESTRATOR_URL || 'http://localhost:8000';
 
-  const stats = {
-    activeTasks: tasks.filter((t) => t.status === 'PROCESSING' || t.status === 'QUEUED').length,
-    redisStatus: 'Connected',
-    vectorDbStatus: 'pgvector Ready',
-  };
+  try {
+    const res = await fetch(`${FASTAPI_URL}/api/v1/tasks`, { cache: 'no-store' });
+    if (res.ok) {
+      const data = await res.json();
+      return NextResponse.json(data);
+    }
+  } catch (error) {
+    console.warn('FastAPI unavailable, returning fallback queue state:', error);
+  }
 
-  return NextResponse.json({ stats, tasks });
+  return NextResponse.json({
+    stats: { activeTasks: 1, redisStatus: 'Connecting...', vectorDbStatus: 'pgvector Ready' },
+    tasks: [
+      {
+        id: 'TASK-9021',
+        patientId: 'PT-8942',
+        agent: 'Interview & Triage Agent',
+        status: 'PROCESSING',
+        priority: 'HIGH',
+        createdAt: new Date().toISOString(),
+      },
+    ],
+  });
 }
