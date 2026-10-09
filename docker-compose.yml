@@ -1,186 +1,38 @@
+version: '3.8'
 services:
   postgres:
-    image: pgvector/pgvector:pg15
+    image: pgvector/pgvector:pg16
     container_name: neuralmedic_postgres
+    restart: always
     environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_DB: neuralmedic_db
+      POSTGRES_USER: neuralmedic_user
+      POSTGRES_PASSWORD: neuralmedic_password
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
-    networks:
-      - neuralmedic_network
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U neuralmedic_user -d neuralmedic_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
     container_name: neuralmedic_redis
+    restart: always
     ports:
-      - "${REDIS_PORT:-6379}:6379"
-    networks:
-      - neuralmedic_network
-
-  outbox_poller:
-    build:
-      context: ./services/outbox_service
-    container_name: neuralmedic_outbox_poller
-    restart: always
-    depends_on:
-      - postgres
-      - redis
-    environment:
-      DB_HOST: postgres
-      DB_PORT: ${POSTGRES_PORT:-5432}
-      DB_USER: admin
-      DB_PASS: ${POSTGRES_PASSWORD}
-      DB_NAME: ${POSTGRES_DB}
-      REDIS_HOST: redis
-      REDIS_PORT: ${REDIS_PORT:-6379}
-    networks:
-      - neuralmedic_network
-
-  context_service:
-    build:
-      context: ./services/context_service
-    container_name: neuralmedic_context_service
-    restart: always
-    depends_on:
-      - postgres
-    environment:
-      DB_HOST: postgres
-      DB_PORT: ${POSTGRES_PORT:-5432}
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-      GROQ_API_KEY: ${GROQ_API_KEY}
-    ports:
-      - "8000:8000"
-    networks:
-      - neuralmedic_network
-
-  embedding_service:
-    build:
-      context: ./services/embedding_service
-    container_name: neuralmedic_embedding_service
-    restart: always
-    depends_on:
-      - postgres
-    environment:
-      DB_HOST: postgres
-      DB_PORT: ${POSTGRES_PORT:-5432}
-      DB_USER: admin
-      DB_PASS: ${POSTGRES_PASSWORD}
-      DB_NAME: ${POSTGRES_DB}
-    networks:
-      - neuralmedic_network
-    ports:
-      - "8005:8000"
-
-  interview_agent:
-    build:
-      context: ./services/interview_agent
-    container_name: neuralmedic_interview_agent
-    restart: always
-    depends_on:
-      - postgres
-    environment:
-      DB_HOST: postgres
-      DB_PORT: ${POSTGRES_PORT:-5432}
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-      GROQ_API_KEY: ${GROQ_API_KEY}
-    ports:
-      - "8001:8001"
-    networks:
-      - neuralmedic_network
-
-  pathology_worker:
-    build:
-      context: ./services/pathology_worker
-    container_name: neuralmedic_pathology_worker
-    restart: always
-    depends_on:
-      - postgres
-      - context_service
-    environment:
-      DB_HOST: postgres
-      DB_PORT: ${POSTGRES_PORT:-5432}
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-      GROQ_API_KEY: ${GROQ_API_KEY}
-      CONTEXT_SERVICE_URL: http://context_service:8000
-    ports:
-      - "8002:8002"
-    networks:
-      - neuralmedic_network
-
-  risk_worker:
-    build:
-      context: ./services/risk_worker
-    container_name: neuralmedic_risk_worker
-    restart: always
-    depends_on:
-      - postgres
-      - context_service
-    environment:
-      DB_HOST: postgres
-      DB_PORT: ${POSTGRES_PORT:-5432}
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-      GROQ_API_KEY: ${GROQ_API_KEY}
-      CONTEXT_SERVICE_URL: http://context_service:8000
-    ports:
-      - "8004:8004"
-    networks:
-      - neuralmedic_network
-
-  orchestrator:
-    build:
-      context: ./services/orchestrator
-    container_name: neuralmedic_orchestrator
-    restart: always
-    depends_on:
-      - postgres
-      - redis
-    environment:
-      DB_HOST: postgres
-      DB_PORT: ${POSTGRES_PORT:-5432}
-      DB_USER: admin
-      DB_PASS: ${POSTGRES_PASSWORD}
-      DB_NAME: ${POSTGRES_DB}
-      REDIS_HOST: redis
-      REDIS_PORT: ${REDIS_PORT:-6379}
-    networks:
-      - neuralmedic_network
-
-  synthesizer:
-    build:
-      context: ./services/synthesizer_service
-    container_name: neuralmedic_synthesizer
-    restart: always
-    depends_on:
-      - postgres
-      - redis
-    environment:
-      DB_HOST: postgres
-      DB_PORT: ${POSTGRES_PORT:-5432}
-      DB_USER: admin
-      DB_PASS: ${POSTGRES_PASSWORD}
-      DB_NAME: ${POSTGRES_DB}
-      REDIS_HOST: redis
-      REDIS_PORT: ${REDIS_PORT:-6379}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-""}
-    networks:
-      - neuralmedic_network
-
-networks:
-  neuralmedic_network:
-    driver: bridge
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_data:
+  redis_data:
